@@ -203,8 +203,10 @@ public class GameEngine {
     public boolean isChaveAtiva() { return jogador.possuiItem(Item.Type.CHAVE); }
 
     public int getTempoRestante() { return tempoRestante; }
-    public void setTempoRestante(int tempo){this.tempoRestante = tempo;}
-
+    public void setTempoRestante(Integer tempo) {
+        if (tempo == null) throw new IllegalArgumentException("Tempo não pode ser null");
+        this.tempoRestante = tempo;
+    }
     public int getMovimentosRestantes(){return this.movimentosRestantes;}
     public void setMovimentosRestantes(Integer movimentos) {
         if (movimentos == null) throw new IllegalArgumentException("Movimentos não pode ser null");

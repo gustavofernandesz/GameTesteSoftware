@@ -56,6 +56,15 @@ class GameEngineFronteiraTest {
     }
 
     @Test
+    @DisplayName("Fronteira: movimentos negativos deve encerrar jogo")
+    void testeFronteiraMovimentosNegativosEncerraJogo() {
+        engine.setMovimentosRestantes(-1);
+        boolean moveu = engine.moverJogador("leste");
+        assertFalse(moveu);
+        assertFalse(engine.isJogoAtivo());
+    }
+
+    @Test
     @DisplayName("Teste de Fronteira: Valor inicial do tempo deve ser 60")
     void testeFronteiraTempoRestanteValorInicial() {
         assertEquals(60, engine.getTempoRestante());
@@ -84,6 +93,36 @@ class GameEngineFronteiraTest {
     }
 
     @Test
+    @DisplayName("Fronteira: tempo em 1 deve encerrar após um tick")
+    void testeFronteiraTempoUmEncerraAposUmTick() throws Exception {
+        engine.setTempoRestante(1);
+        Timer timer = getTimerFromEngine(engine);
+        fireTimerAction(timer);
+        assertEquals(0, engine.getTempoRestante());
+        assertFalse(engine.isJogoAtivo());
+    }
+
+    @Test
+    @DisplayName("Fronteira: tempo negativo no timer deve encerrar jogo")
+    void testeFronteiraTempoNegativoEncerraJogo() throws Exception {
+        engine.setTempoRestante(-1);
+        Timer timer = getTimerFromEngine(engine);
+        fireTimerAction(timer);
+        assertFalse(engine.isJogoAtivo());
+        verify(listenerMock).onJogoTerminado(false);
+    }
+
+    @Test
+    @DisplayName("Fronteira: mover com 1 movimento restante zera e encerra jogo")
+    void testeFronteiraUltimoMovimentoEncerraJogo() {
+        engine.setMovimentosRestantes(1);
+        engine.moverJogador("leste");
+        assertEquals(0, engine.getMovimentosRestantes());
+        assertFalse(engine.isJogoAtivo());
+        verify(listenerMock).onJogoTerminado(false);
+    }
+
+    @Test
     @DisplayName("Teste de Fronteira: Quando tempo zerar, jogo deve ser encerrado")
     void testeFronteiraTempoRestanteZerar() throws Exception {
         // Simula a contagem regressiva do timer
@@ -100,6 +139,12 @@ class GameEngineFronteiraTest {
     }
 
     @Test
+    @DisplayName("Fronteira: setTempoRestante com null deve lançar exceção")
+    void testeFronteiraSetTempoRestanteNull() {
+        assertThrows(IllegalArgumentException.class, () -> engine.setTempoRestante(null));
+    }
+
+    @Test
     @DisplayName("Teste de Fronteira: Poção de velocidade dobra o tempo respeitando o limite")
     void testeFronteiraPocaoVelocidadeDobraTempo() {
         // Arrange: tempo inicial 60
@@ -113,6 +158,26 @@ class GameEngineFronteiraTest {
         // Assert: 60 * 2 = 120
         assertEquals(120, engine.getTempoRestante());
         verify(listenerMock).onTempoAtualizado(120);
+    }
+
+    @Test
+    @DisplayName("Fronteira: amuleto com 0 movimentos concede exatamente 3")
+    void testeFronteiraAmuletoComZeroMovimentos() {
+        engine.setMovimentosRestantes(0);
+        Room entrada = engine.getSalas().get("entrada");
+        entrada.adicionarItem(new Item("Amuleto", Item.Type.AMULETO_VISAO, ""));
+        engine.coletarItensSala();
+        assertEquals(3, engine.getMovimentosRestantes());
+    }
+
+    @Test
+    @DisplayName("Fronteira: amuleto com 1 movimento concede 4")
+    void testeFronteiraAmuletoComUmMovimento() {
+        engine.setMovimentosRestantes(1);
+        Room entrada = engine.getSalas().get("entrada");
+        entrada.adicionarItem(new Item("Amuleto", Item.Type.AMULETO_VISAO, ""));
+        engine.coletarItensSala();
+        assertEquals(4, engine.getMovimentosRestantes());
     }
 
     @Test
