@@ -206,5 +206,7 @@ public class GameEngine {
     public void setTempoRestante(int tempo){this.tempoRestante = tempo;}
 
     public int getMovimentosRestantes(){return this.movimentosRestantes;}
-    public void setMovimentosRestantes(int movimentos){this.movimentosRestantes = movimentos;    }
-}
+    public void setMovimentosRestantes(Integer movimentos) {
+        if (movimentos == null) throw new IllegalArgumentException("Movimentos não pode ser null");
+        this.movimentosRestantes = movimentos;
+    }}

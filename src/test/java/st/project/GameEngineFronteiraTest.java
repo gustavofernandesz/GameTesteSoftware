@@ -50,6 +50,12 @@ class GameEngineFronteiraTest {
     }
 
     @Test
+    @DisplayName("Fronteira: setMovimentosRestantes com null deve lançar exceção")
+    void testeFronteiraSetMovimentosRestantesNull() {
+        assertThrows(IllegalArgumentException.class, () -> engine.setMovimentosRestantes(null));
+    }
+
+    @Test
     @DisplayName("Teste de Fronteira: Valor inicial do tempo deve ser 60")
     void testeFronteiraTempoRestanteValorInicial() {
         assertEquals(60, engine.getTempoRestante());
