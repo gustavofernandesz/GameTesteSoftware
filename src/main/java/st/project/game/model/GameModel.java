@@ -17,7 +17,10 @@ public class GameModel implements Serializable {
     private int tempoRestante;
     private int movimentosRestantes;
     private boolean jogoAtivo;
+
+    // transient – não será salvo
     private transient PropertyChangeSupport pcs;
+
     private static final int MAX_MOVIMENTOS = 7;
 
     private final long seed;
@@ -40,12 +43,12 @@ public class GameModel implements Serializable {
         this.movimentosRestantes = MAX_MOVIMENTOS;
     }
 
-    // Método de desserialização: recria objetos transient
+    // Método chamado automaticamente durante a desserialização
     @Serial
     private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
         this.random = new Random(seed);
-        this.pcs = new PropertyChangeSupport(this);
+        this.pcs = new PropertyChangeSupport(this);   // recria vazio
     }
 
     public Map<String, Room> getSalas() { return salas; }
