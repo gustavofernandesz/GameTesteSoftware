@@ -1,8 +1,11 @@
 package st.project.game.view;
 
 import st.project.game.controller.GameEngine;
+import st.project.game.controller.SaveManager;
+import st.project.game.controller.UserManager;
 import st.project.game.model.GameModel;
 import st.project.game.model.Room;
+import st.project.game.model.User;
 
 import javax.swing.*;
 import javax.swing.border.*;
@@ -14,7 +17,6 @@ import java.util.Stack;
 
 public class GameGUI extends JFrame implements PropertyChangeListener {
 
-    // ── Paleta dark-fantasy ──────────────────────────────────────────────────
     private static final Color BG_DARK       = new Color(0x0D0D1A);
     private static final Color BG_PANEL      = new Color(0x14142B);
     private static final Color BG_CARD       = new Color(0x1C1C38);
@@ -39,32 +41,50 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
     private JLabel timeLabel;
     private JLabel statusLabel;
     private JLabel movesLabel;
+    private JLabel levelLabel;   // novo
+    private JLabel scoreLabel;   // novo
 
     private final JTextArea logArea;
 
-    // ── Fontes ───────────────────────────────────────────────────────────────
     private Font fontTitle;
     private Font fontMono;
     private Font fontBody;
 
-    public GameGUI() {
+    // Novos campos para gerenciamento
+    private User user;
+    private UserManager userManager;
+    private SaveManager saveManager;
+    private int slot;
+
+    public GameGUI(GameModel model, User user, UserManager userManager, SaveManager saveManager, int slot) {
+        this.model = model;
+        this.user = user;
+        this.userManager = userManager;
+        this.saveManager = saveManager;
+        this.slot = slot;
+
         loadFonts();
 
         setTitle("Aventura Mágica - Missão: Cálice Sagrado");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                // Salva o jogo antes de fechar
+                saveManager.saveGame(model, user, slot);
+                dispose();
+                new MainMenu(user, userManager);
+            }
+        });
         setBackground(BG_DARK);
         setLayout(new BorderLayout(0, 0));
 
-        // Cria o modelo e o controlador
-        model = new GameModel();
         engine = new GameEngine(model);
-        model.addPropertyChangeListener(this);   // View observa o modelo
+        model.addPropertyChangeListener(this);
 
-        // ── Barra superior ──────────────────────────────────────────────────
         JPanel topPanel = buildTopPanel();
         add(topPanel, BorderLayout.NORTH);
 
-        // ── Mapa ────────────────────────────────────────────────────────────
         mapPanel = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -81,12 +101,10 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         centerWrapper.add(mapPanel);
         add(centerWrapper, BorderLayout.CENTER);
 
-        // ── Painel lateral ──────────────────────────────────────────────────
         logArea = new JTextArea();
         JPanel rightPanel = buildRightPanel();
         add(rightPanel, BorderLayout.EAST);
 
-        // ── Teclado: setas + WASD ────────────────────────────────────────────
         bindKeys();
 
         setResizable(false);
@@ -97,6 +115,8 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         // Exibe estado inicial
         timeLabel.setText("Tempo: " + model.getTempoRestante() + "s");
         movesLabel.setText("Mov: " + model.getMovimentosRestantes());
+        levelLabel.setText("Nível: " + model.getNivel());
+        scoreLabel.setText("Score: " + model.getScore());
         log("Bem-vindo, aventureiro!");
         log("  Encontre o Cálice Mágico.");
         log("  Você precisa da Chave Encantada");
@@ -107,25 +127,25 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         atualizarMapa();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Construção da UI
-    // ─────────────────────────────────────────────────────────────────────────
-
     private JPanel buildTopPanel() {
-        JPanel top = new JPanel(new GridLayout(1, 4));
+        JPanel top = new JPanel(new GridLayout(1, 6));
         top.setBackground(BG_PANEL);
         top.setBorder(new MatteBorder(0, 0, 2, 0, ACCENT_GOLD));
         top.setPreferredSize(new Dimension(0, 52));
 
         timeLabel   = makeLabel("Tempo: 60s",          fontTitle, ACCENT_GOLD);
+        movesLabel   = makeLabel("Mov: 7",              fontTitle, ACCENT_PURPLE);
+        levelLabel  = makeLabel("Nível: 1",             fontBody,  ACCENT_TEAL);
+        scoreLabel  = makeLabel("Score: 0",             fontBody,  ACCENT_GOLD);
         JLabel title = makeLabel("CÁLICE SAGRADO",      fontTitle, TEXT_LIGHT);
         statusLabel  = makeLabel("Explorando...",       fontBody,  ACCENT_TEAL);
-        movesLabel   = makeLabel("Mov: 7",              fontTitle, ACCENT_PURPLE);
 
         top.add(wrapCenter(timeLabel));
+        top.add(wrapCenter(movesLabel));
+        top.add(wrapCenter(levelLabel));
+        top.add(wrapCenter(scoreLabel));
         top.add(wrapCenter(title));
         top.add(wrapCenter(statusLabel));
-        top.add(wrapCenter(movesLabel));
         return top;
     }
 
@@ -219,10 +239,6 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         return btn;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Key bindings (WASD + setas)
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void bindKeys() {
         InputMap  im = getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
         ActionMap am = getRootPane().getActionMap();
@@ -245,16 +261,14 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Lógica de movimento
-    // ─────────────────────────────────────────────────────────────────────────
-
     public void mover(String direcao) {
         if (!model.isJogoAtivo()) return;
         boolean moveu = engine.mover(direcao);
         if (moveu) {
+            // Salva automaticamente após cada movimento
+            saveManager.saveGame(model, user, slot);
             atualizarMapa();
-            st.project.game.model.Room atual = model.getJogador().getPosicaoAtual();
+            Room atual = model.getJogador().getPosicaoAtual();
             log("-> " + atual.getNome());
             if (!model.getJogador().getInventario().isEmpty()) {
                 log("  Inv: " + model.getJogador().getInventario());
@@ -268,10 +282,6 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         mapPanel.repaint();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Desenho do mapa
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void desenharMapa(Graphics2D g) {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,      RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -281,7 +291,6 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         Stack<Room> historico = model.getJogador().getHistorico();
         java.util.Set<Room> visitadas = new java.util.HashSet<>(historico);
 
-        // Trilha percorrida
         if (historico.size() > 1) {
             g.setColor(PATH_COLOR);
             g.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND,
@@ -300,14 +309,12 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
             g.setStroke(new BasicStroke(1));
         }
 
-        // Tiles
         for (Room room : model.getSalas().values()) {
             int     rx       = room.getX() * TILE_SIZE + pad;
             int     ry       = room.getY() * TILE_SIZE + pad;
             boolean isPlayer = room == model.getJogador().getPosicaoAtual();
             boolean visited  = visitadas.contains(room);
 
-            // Fundo
             if (isPlayer) {
                 drawGradientRect(g, rx, ry, new Color(0x1A3A1A), TILE_PLAYER);
             } else if (room.isBloqueada()) {
@@ -318,7 +325,6 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
                 drawGradientRect(g, rx, ry, TILE_NORMAL, new Color(0x26264E));
             }
 
-            // Borda
             if (isPlayer) {
                 g.setColor(ACCENT_TEAL);
                 g.setStroke(new BasicStroke(2f));
@@ -332,7 +338,6 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
             g.drawRoundRect(rx, ry, TILE_SIZE - 1, TILE_SIZE - 1, 6, 6);
             g.setStroke(new BasicStroke(1));
 
-            // Nome da sala (abreviado)
             String nome = room.getNome().length() > 10
                     ? room.getNome().substring(0, 10)
                     : room.getNome();
@@ -340,23 +345,19 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
             g.setColor(isPlayer ? ACCENT_TEAL : room.isBloqueada() ? TEXT_DIM : TEXT_LIGHT);
             drawStringCentered(g, nome, rx, ry, 20);
 
-            // Cadeado
             if (room.isBloqueada()) {
                 drawLockIcon(g, rx + TILE_SIZE / 2, ry + TILE_SIZE / 2 + 8);
             }
 
-            // Ícone de item
             if (!room.getItems().isEmpty()) {
                 drawItemGem(g, rx + TILE_SIZE - 18, ry + 5);
             }
 
-            // Ícone do jogador
             if (isPlayer) {
                 drawPlayerIcon(g, rx + TILE_SIZE / 2, ry + TILE_SIZE / 2 + 8);
             }
         }
 
-        // Destaque do cálice (se a chave já foi coletada)
         if (model.isChaveAtiva()) {
             Room caliceRoom = model.getMissao().getSalaCalice();
             int rx = caliceRoom.getX() * TILE_SIZE + pad;
@@ -373,10 +374,6 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Utilitários de desenho
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void drawGradientRect(Graphics2D g, int x, int y, Color c1, Color c2) {
         GradientPaint gp = new GradientPaint(x, y, c1, x + TILE_SIZE, y + TILE_SIZE, c2);
         g.setPaint(gp);
@@ -392,15 +389,12 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
 
     private void drawLockIcon(Graphics2D g, int cx, int cy) {
         g.setStroke(new BasicStroke(2f));
-        // argola
         g.setColor(new Color(0xFFAA00));
         g.drawArc(cx - 5, cy - 14, 10, 10, 0, 180);
-        // corpo
         g.setColor(new Color(0xCC8800));
         g.fillRoundRect(cx - 7, cy - 7, 14, 11, 3, 3);
         g.setColor(new Color(0xFFAA00));
         g.drawRoundRect(cx - 7, cy - 7, 14, 11, 3, 3);
-        // buraco da fechadura
         g.setColor(BG_DARK);
         g.fillOval(cx - 2, cy - 4, 5, 5);
         g.setStroke(new BasicStroke(1));
@@ -434,10 +428,6 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         g.fillOval(cx - 2, cy - 2, 5, 5);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Callback do modelo (PropertyChangeListener)
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public void propertyChange(PropertyChangeEvent evt) {
         String prop = evt.getPropertyName();
@@ -460,6 +450,14 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
                 movesLabel.setText("Mov: " + mov);
                 break;
 
+            case "score":
+                scoreLabel.setText("Score: " + evt.getNewValue());
+                break;
+
+            case "nivel":
+                levelLabel.setText("Nível: " + evt.getNewValue());
+                break;
+
             case "gameOver":
                 boolean vitoria = (boolean) evt.getNewValue();
                 if (vitoria) {
@@ -472,6 +470,9 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
                     JOptionPane.showMessageDialog(this,
                             "Você venceu! Missão cumprida!",
                             "VITÓRIA", JOptionPane.INFORMATION_MESSAGE);
+                    // Atualiza usuário e remove save
+                    userManager.updateUserScoreAndSession(user, model.getScore());
+                    saveManager.deleteSave(user, slot);
                 } else {
                     statusLabel.setForeground(new Color(0xFF4444));
                     statusLabel.setText("Tempo esgotado - Fim de Jogo");
@@ -482,14 +483,17 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
                     JOptionPane.showMessageDialog(this,
                             "Tempo esgotado! Fim de jogo.",
                             "FIM DE JOGO", JOptionPane.WARNING_MESSAGE);
+                    // Em caso de derrota, também remove o save
+                    saveManager.deleteSave(user, slot);
                 }
+                // Fecha a janela e volta ao menu
+                SwingUtilities.invokeLater(() -> {
+                    dispose();
+                    new MainMenu(user, userManager);
+                });
                 break;
         }
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────────────────────
 
     public void log(String msg) {
         logArea.append(msg + "\n");
@@ -527,10 +531,6 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         fontBody = new Font("SansSerif", Font.PLAIN, 12);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // ScrollBar escura customizada
-    // ─────────────────────────────────────────────────────────────────────────
-
     private static class DarkScrollBarUI extends javax.swing.plaf.basic.BasicScrollBarUI {
         @Override protected void configureScrollBarColors() {
             thumbColor = new Color(0x44447A);
@@ -543,18 +543,5 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
             b.setPreferredSize(new Dimension(0, 0));
             return b;
         }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Entry point
-    // ─────────────────────────────────────────────────────────────────────────
-
-    public static void main(String[] args) {
-        try {
-            UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
-        } catch (Exception ignored) {}
-        System.setProperty("awt.useSystemAAFontSettings", "on");
-        System.setProperty("swing.aatext", "true");
-        SwingUtilities.invokeLater(GameGUI::new);
     }
 }

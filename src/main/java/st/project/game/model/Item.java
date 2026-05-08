@@ -1,6 +1,12 @@
 package st.project.game.model;
 
-public class Item {
+import java.io.Serial;
+import java.io.Serializable;
+
+public class Item implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     public enum Type { CHAVE, POCAO_VELOCIDADE, AMULETO_VISAO, CALICE }
 
     private String nome;

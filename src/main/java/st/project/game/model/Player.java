@@ -1,13 +1,18 @@
 package st.project.game.model;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
 
-public class Player {
+public class Player implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     private Room posicaoAtual;
     private final List<Item> inventario;
-    private final Stack<Room> historico;   // para visualizar o trajeto
+    private final Stack<Room> historico;
 
     public Player(Room inicio) {
         this.posicaoAtual = inicio;
@@ -23,7 +28,6 @@ public class Player {
     public boolean moverPara(Room destino) {
         if (destino == null) return false;
         if (destino.isBloqueada()) {
-            // verifica se possui chave
             boolean temChave = inventario.stream().anyMatch(i -> i.getTipo() == Item.Type.CHAVE);
             if (!temChave) return false;
         }
@@ -47,8 +51,6 @@ public class Player {
     }
 
     public void usarItem(Item item) {
-        // efeitos específicos são tratados pelo GameEngine
-        // aqui apenas removemos se for de uso único
         if (item.getTipo() == Item.Type.POCAO_VELOCIDADE ||
                 item.getTipo() == Item.Type.AMULETO_VISAO) {
             inventario.remove(item);

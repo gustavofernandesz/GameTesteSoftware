@@ -1,6 +1,12 @@
 package st.project.game.model;
 
-public class Mission {
+import java.io.Serial;
+import java.io.Serializable;
+
+public class Mission implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     private boolean caliceColetado;
     private final Room salaCalice;
     private boolean missaoConcluida;
@@ -15,8 +21,6 @@ public class Mission {
         if (!caliceColetado && jogador.possuiItem(Item.Type.CALICE)) {
             caliceColetado = true;
         }
-        // Missão concluída quando coletar o cálice e estiver na sala final?
-        // Vamos definir: missão concluída quando coletar o cálice.
         if (caliceColetado) {
             missaoConcluida = true;
         }

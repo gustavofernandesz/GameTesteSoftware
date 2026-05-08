@@ -1,15 +1,18 @@
 package st.project.game.model;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.*;
 
-public class Room {
+public class Room implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     private final String nome;
     private final int x;
-    private final int y;               // coordenadas no grid
-    private final List<Item> items;       // itens presentes na sala
-    private boolean bloqueada;      // se precisa de chave para entrar
+    private final int y;
+    private final List<Item> items;
+    private boolean bloqueada;
     private final HashMap<String, Room> vizinhos;
 
     public Room(String nome, int x, int y) {
@@ -41,7 +44,8 @@ public class Room {
 
     public boolean contemItem(Item.Type tipo) {
         for (Item i : items) {
-            if (i.getTipo() == tipo) return true;}
+            if (i.getTipo() == tipo) return true;
+        }
         return false;
     }
 
@@ -51,8 +55,6 @@ public class Room {
         }
         return null;
     }
-    // Na classe Room
-
 
     public void setVizinho(String direcao, Room vizinho) {
         vizinhos.put(direcao, vizinho);
@@ -61,6 +63,4 @@ public class Room {
     public Room getVizinho(String direcao) {
         return vizinhos.get(direcao);
     }
-
-
 }

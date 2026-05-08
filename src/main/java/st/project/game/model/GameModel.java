@@ -2,31 +2,37 @@ package st.project.game.model;
 
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
+import java.io.IOException;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.*;
 
-/**
- * Modelo centralizado do jogo. Encapsula todo o estado e as regras
- * de negócio (movimentação, coleta de itens, efeitos, progresso da missão).
- * Notifica a View através de PropertyChangeSupport.
- */
-public class GameModel {
+public class GameModel implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     private Map<String, Room> salas;
     private final Player jogador;
     private final Mission missao;
     private int tempoRestante;
     private int movimentosRestantes;
     private boolean jogoAtivo;
-    private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
+    private transient PropertyChangeSupport pcs;
     private static final int MAX_MOVIMENTOS = 7;
 
-    // ── Construtores ────────────────────────────────────────────────
+    private final long seed;
+    private transient Random random;
+
     public GameModel() {
-        this(new Random());
+        this(System.currentTimeMillis());
     }
 
-    public GameModel(Random seed) {
+    public GameModel(long seed) {
+        this.seed = seed;
+        this.random = new Random(seed);
+        this.pcs = new PropertyChangeSupport(this);
         jogoAtivo = true;
-        inicializarMapa(seed);
+        inicializarMapa(random);
         inicializarItens();
         this.jogador = new Player(salas.get("entrada"));
         this.missao = new Mission(salas.get("sagrado"));
@@ -34,7 +40,14 @@ public class GameModel {
         this.movimentosRestantes = MAX_MOVIMENTOS;
     }
 
-    // ── Getters (estado apenas leitura) ────────────────────────────
+    // Método de desserialização: recria objetos transient
+    @Serial
+    private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        this.random = new Random(seed);
+        this.pcs = new PropertyChangeSupport(this);
+    }
+
     public Map<String, Room> getSalas() { return salas; }
     public Player getJogador() { return jogador; }
     public Mission getMissao() { return missao; }
@@ -43,15 +56,25 @@ public class GameModel {
     public boolean isJogoAtivo() { return jogoAtivo; }
     public boolean isChaveAtiva() { return jogador.possuiItem(Item.Type.CHAVE); }
 
-    // ── Métodos de manipulação de estado ─────────────────────────────
+    public int getScore() {
+        return tempoRestante * 10 + movimentosRestantes * 5 + jogador.getInventario().size() * 100;
+    }
 
-    /** Tenta mover o jogador na direção informada. Retorna true se moveu. */
+    public int getNivel() {
+        return 1 + (int) jogador.getInventario().stream()
+                .filter(i -> i.getTipo() != Item.Type.CHAVE)
+                .count();
+    }
+
     public boolean moverJogador(String direcao) {
         if (!jogoAtivo || movimentosRestantes <= 0) return false;
 
         Room atual = jogador.getPosicaoAtual();
         Room destino = atual.getVizinho(direcao);
         if (destino == null) return false;
+
+        int oldScore = getScore();
+        int oldNivel = getNivel();
 
         boolean moveu = jogador.moverPara(destino);
         if (moveu) {
@@ -61,37 +84,37 @@ public class GameModel {
 
             coletarItensSala();
             missao.verificarProgresso(jogador);
+
+            pcs.firePropertyChange("score", oldScore, getScore());
+            pcs.firePropertyChange("nivel", oldNivel, getNivel());
         }
         return moveu;
     }
 
-    /** Decrementa o tempo do jogo (chamado pelo timer). */
     public void reduzirTempo() {
         if (!jogoAtivo) return;
         int old = tempoRestante;
+        int oldScore = getScore();
         tempoRestante--;
         pcs.firePropertyChange("tempo", old, tempoRestante);
+        pcs.firePropertyChange("score", oldScore, getScore());
         if (tempoRestante <= 0) {
             finalizarJogo(false);
         }
     }
 
-    /** Encerra o jogo (vitória ou derrota) e notifica a View. */
     public void finalizarJogo(boolean vitoria) {
-        if (!jogoAtivo) return;   // evita múltiplas notificações
+        if (!jogoAtivo) return;
         jogoAtivo = false;
         pcs.firePropertyChange("gameOver", null, vitoria);
     }
 
-    // ── Observer (PropertyChangeListener) ──────────────────────────
     public void addPropertyChangeListener(PropertyChangeListener listener) {
         pcs.addPropertyChangeListener(listener);
     }
     public void removePropertyChangeListener(PropertyChangeListener listener) {
         pcs.removePropertyChangeListener(listener);
     }
-
-    // ── Métodos privados de lógica interna ──────────────────────────
 
     private void coletarItensSala() {
         Room atual = jogador.getPosicaoAtual();
@@ -117,21 +140,18 @@ public class GameModel {
                 break;
             case CHAVE:
             case CALICE:
-                // Efeitos indiretos – tratados em Player.moverPara() e Mission.verificarProgresso()
                 break;
         }
     }
 
-    // ── Inicialização do mapa e itens (igual ao GameEngine original) ──
-
-    private void inicializarMapa(Random seed) {
+    private void inicializarMapa(Random rnd) {
         salas = new HashMap<>();
         List<String> nomesIntermedios = new ArrayList<>(Arrays.asList(
                 "sala1","sala2","sala3","sala4","corredor","biblioteca","sala5","sala6","sala7",
                 "jardim","cozinha","sala8","sala9","sala10","torre","sala11","sala12","sala13","sala14",
                 "sala15","sala16","sala17","sala18"
         ));
-        Collections.shuffle(nomesIntermedios, seed);
+        Collections.shuffle(nomesIntermedios, rnd);
 
         String[] nomes = new String[25];
         nomes[0] = "entrada";
