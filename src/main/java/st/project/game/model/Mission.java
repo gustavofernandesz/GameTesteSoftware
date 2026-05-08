@@ -1,4 +1,4 @@
-package st.project.game;
+package st.project.game.model;
 
 public class Mission {
     private boolean caliceColetado;

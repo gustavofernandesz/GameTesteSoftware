@@ -1,11 +1,11 @@
-package st.project;
+package st.project.game;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import st.project.game.Item;
-import st.project.game.Mission;
-import st.project.game.Player;
-import st.project.game.Room;
+import st.project.game.model.Item;
+import st.project.game.model.Mission;
+import st.project.game.model.Player;
+import st.project.game.model.Room;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

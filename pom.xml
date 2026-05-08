@@ -101,9 +101,9 @@
                         <param>st.project.*</param>
                     </targetTests>
                     <excludedTestClasses>
-                        <param>st.project.GameGUIDominioTest</param>
-                        <param>st.project.GameGUIEstruturaTest</param>
-                        <param>st.project.GameGUIFronteiraTest</param>
+                        <param>st.project.game.GameGUIDominioTest</param>
+                        <param>st.project.game.GameGUIEstruturaTest</param>
+                        <param>st.project.game.GameGUIFronteiraTest</param>
                     </excludedTestClasses>
                 </configuration>
             </plugin>

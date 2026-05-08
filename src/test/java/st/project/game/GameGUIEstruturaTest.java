@@ -1,4 +1,4 @@
-package st.project;
+package st.project.game;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -6,7 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
-import st.project.game.GameGUI;
+import st.project.game.view.GameGUI;
 
 import javax.swing.*;
 import java.awt.*;

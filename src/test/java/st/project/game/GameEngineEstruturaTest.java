@@ -1,4 +1,4 @@
-package st.project;
+package st.project.game;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -6,9 +6,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import st.project.game.GameEngine;
-import st.project.game.Item;
-import st.project.game.Room;
+import st.project.game.controller.GameEngine;
+import st.project.game.model.Item;
+import st.project.game.model.Room;
 
 import javax.swing.Timer;
 import java.lang.reflect.Field;

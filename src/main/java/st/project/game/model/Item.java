@@ -1,4 +1,4 @@
-package st.project.game;
+package st.project.game.model;
 
 public class Item {
     public enum Type { CHAVE, POCAO_VELOCIDADE, AMULETO_VISAO, CALICE }

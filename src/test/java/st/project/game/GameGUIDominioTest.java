@@ -1,4 +1,4 @@
-package st.project;
+package st.project.game;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -6,7 +6,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import st.project.game.*;
+import st.project.game.controller.GameEngine;
+import st.project.game.model.Mission;
+import st.project.game.model.Player;
+import st.project.game.model.Room;
+import st.project.game.view.GameGUI;
 
 import javax.swing.*;
 import java.awt.*;

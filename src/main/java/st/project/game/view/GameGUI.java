@@ -1,12 +1,18 @@
-package st.project.game;
+package st.project.game.view;
+
+import st.project.game.controller.GameEngine;
+import st.project.game.model.GameModel;
+import st.project.game.model.Room;
 
 import javax.swing.*;
 import javax.swing.border.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.util.Stack;
 
-public class GameGUI extends JFrame implements GameEngine.TimerListener {
+public class GameGUI extends JFrame implements PropertyChangeListener {
 
     // ── Paleta dark-fantasy ──────────────────────────────────────────────────
     private static final Color BG_DARK       = new Color(0x0D0D1A);
@@ -17,24 +23,19 @@ public class GameGUI extends JFrame implements GameEngine.TimerListener {
     private static final Color ACCENT_TEAL   = new Color(0x2DD4BF);
     private static final Color TEXT_LIGHT    = new Color(0xE8E8F0);
     private static final Color TEXT_DIM      = new Color(0x7878A0);
-    private static final Color TILE_VISITED  = new Color(0x00FF80); // FIX #7: agora utilizado
+    private static final Color TILE_VISITED  = new Color(0x00FF80);
     private static final Color TILE_LOCKED   = new Color(0x1A1A2E);
     private static final Color TILE_NORMAL   = new Color(0x1E1E3C);
     private static final Color TILE_PLAYER   = new Color(0x2E4A2E);
     private static final Color TILE_BORDER   = new Color(0x3A3A60);
-    // FIX #6: Color(int, boolean=true) com 0x6060B0 teria alpha=0x00 (invisível).
-    // Corrigido para construtor RGB explícito.
     private static final Color PATH_COLOR    = new Color(0x60, 0x60, 0xB0);
 
-//u
     private static final int TILE_SIZE = 100;
 
+    private final GameModel model;
     private final GameEngine engine;
     private final JPanel     mapPanel;
 
-    // FIX #1: timeLabel e statusLabel declarados como campos e atribuídos
-    // diretamente em buildTopPanel(), eliminando o cast frágil via getComponent()
-    // que causava ClassCastException.
     private JLabel timeLabel;
     private JLabel statusLabel;
     private JLabel movesLabel;
@@ -49,15 +50,17 @@ public class GameGUI extends JFrame implements GameEngine.TimerListener {
     public GameGUI() {
         loadFonts();
 
-        setTitle("Aventura Magica - Missao: Calice Sagrado");
+        setTitle("Aventura Mágica - Missão: Cálice Sagrado");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setBackground(BG_DARK);
         setLayout(new BorderLayout(0, 0));
 
-        engine = new GameEngine(this);
+        // Cria o modelo e o controlador
+        model = new GameModel();
+        engine = new GameEngine(model);
+        model.addPropertyChangeListener(this);   // View observa o modelo
 
         // ── Barra superior ──────────────────────────────────────────────────
-        // FIX #1: buildTopPanel() agora atribui timeLabel e statusLabel diretamente.
         JPanel topPanel = buildTopPanel();
         add(topPanel, BorderLayout.NORTH);
 
@@ -91,10 +94,13 @@ public class GameGUI extends JFrame implements GameEngine.TimerListener {
         setLocationRelativeTo(null);
         setVisible(true);
 
+        // Exibe estado inicial
+        timeLabel.setText("Tempo: " + model.getTempoRestante() + "s");
+        movesLabel.setText("Mov: " + model.getMovimentosRestantes());
         log("Bem-vindo, aventureiro!");
-        log("  Encontre o Calice Magico.");
-        log("  Voce precisa da Chave Encantada");
-        log("  para entrar na sala do calice.");
+        log("  Encontre o Cálice Mágico.");
+        log("  Você precisa da Chave Encantada");
+        log("  para entrar na sala do cálice.");
         log("─────────────────────────────");
         log("  Mova-se: WASD ou setas");
         log("─────────────────────────────");
@@ -106,17 +112,15 @@ public class GameGUI extends JFrame implements GameEngine.TimerListener {
     // ─────────────────────────────────────────────────────────────────────────
 
     private JPanel buildTopPanel() {
-        JPanel top = new JPanel(new GridLayout(1, 3));
+        JPanel top = new JPanel(new GridLayout(1, 4));
         top.setBackground(BG_PANEL);
         top.setBorder(new MatteBorder(0, 0, 2, 0, ACCENT_GOLD));
         top.setPreferredSize(new Dimension(0, 52));
 
-        // FIX #1: atribui diretamente aos campos em vez de recuperar via getComponent()
         timeLabel   = makeLabel("Tempo: 60s",          fontTitle, ACCENT_GOLD);
-        JLabel title = makeLabel("CALICE SAGRADO",      fontTitle, TEXT_LIGHT);
+        JLabel title = makeLabel("CÁLICE SAGRADO",      fontTitle, TEXT_LIGHT);
         statusLabel  = makeLabel("Explorando...",       fontBody,  ACCENT_TEAL);
-        movesLabel   = makeLabel("Mov: 7",         fontTitle, ACCENT_PURPLE);
-
+        movesLabel   = makeLabel("Mov: 7",              fontTitle, ACCENT_PURPLE);
 
         top.add(wrapCenter(timeLabel));
         top.add(wrapCenter(title));
@@ -246,14 +250,14 @@ public class GameGUI extends JFrame implements GameEngine.TimerListener {
     // ─────────────────────────────────────────────────────────────────────────
 
     public void mover(String direcao) {
-        if (!engine.isJogoAtivo()) return;
-        boolean moveu = engine.moverJogador(direcao);
+        if (!model.isJogoAtivo()) return;
+        boolean moveu = engine.mover(direcao);
         if (moveu) {
             atualizarMapa();
-            Room atual = engine.getJogador().getPosicaoAtual();
+            st.project.game.model.Room atual = model.getJogador().getPosicaoAtual();
             log("-> " + atual.getNome());
-            if (!engine.getJogador().getInventario().isEmpty()) {
-                log("  Inv: " + engine.getJogador().getInventario());
+            if (!model.getJogador().getInventario().isEmpty()) {
+                log("  Inv: " + model.getJogador().getInventario());
             }
         } else {
             log("X Bloqueado ao " + direcao + ".");
@@ -274,11 +278,10 @@ public class GameGUI extends JFrame implements GameEngine.TimerListener {
 
         int pad = 20;
 
-        // FIX #7: conjunto de salas visitadas para colorir com TILE_VISITED
-        Stack<Room> historico = engine.getJogador().getHistorico();
+        Stack<Room> historico = model.getJogador().getHistorico();
         java.util.Set<Room> visitadas = new java.util.HashSet<>(historico);
 
-        // Trilha percorrida — FIX #6: usa PATH_COLOR corrigido
+        // Trilha percorrida
         if (historico.size() > 1) {
             g.setColor(PATH_COLOR);
             g.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND,
@@ -298,25 +301,21 @@ public class GameGUI extends JFrame implements GameEngine.TimerListener {
         }
 
         // Tiles
-        for (Room room : engine.getSalas().values()) {
+        for (Room room : model.getSalas().values()) {
             int     rx       = room.getX() * TILE_SIZE + pad;
             int     ry       = room.getY() * TILE_SIZE + pad;
-            boolean isPlayer = room == engine.getJogador().getPosicaoAtual();
+            boolean isPlayer = room == model.getJogador().getPosicaoAtual();
             boolean visited  = visitadas.contains(room);
 
-            // Fundo — FIX #7: salas visitadas agora usam TILE_VISITED
+            // Fundo
             if (isPlayer) {
-                drawGradientRect(g, rx, ry,
-                        new Color(0x1A3A1A), TILE_PLAYER);
+                drawGradientRect(g, rx, ry, new Color(0x1A3A1A), TILE_PLAYER);
             } else if (room.isBloqueada()) {
-                drawGradientRect(g, rx, ry,
-                        TILE_LOCKED, new Color(0x22224A));
+                drawGradientRect(g, rx, ry, TILE_LOCKED, new Color(0x22224A));
             } else if (visited) {
-                drawGradientRect(g, rx, ry,
-                        TILE_VISITED, new Color(0x32325A));
+                drawGradientRect(g, rx, ry, TILE_VISITED, new Color(0x32325A));
             } else {
-                drawGradientRect(g, rx, ry,
-                        TILE_NORMAL, new Color(0x26264E));
+                drawGradientRect(g, rx, ry, TILE_NORMAL, new Color(0x26264E));
             }
 
             // Borda
@@ -341,7 +340,7 @@ public class GameGUI extends JFrame implements GameEngine.TimerListener {
             g.setColor(isPlayer ? ACCENT_TEAL : room.isBloqueada() ? TEXT_DIM : TEXT_LIGHT);
             drawStringCentered(g, nome, rx, ry, 20);
 
-            // FIX #9: cadeado desenhado geometricamente — sem dependência de suporte a emoji
+            // Cadeado
             if (room.isBloqueada()) {
                 drawLockIcon(g, rx + TILE_SIZE / 2, ry + TILE_SIZE / 2 + 8);
             }
@@ -357,9 +356,9 @@ public class GameGUI extends JFrame implements GameEngine.TimerListener {
             }
         }
 
-        // Destaque do cálice (amuleto ativo)
-        if (engine.isChaveAtiva()) {
-            Room caliceRoom = engine.getMissao().getSalaCalice();
+        // Destaque do cálice (se a chave já foi coletada)
+        if (model.isChaveAtiva()) {
+            Room caliceRoom = model.getMissao().getSalaCalice();
             int rx = caliceRoom.getX() * TILE_SIZE + pad;
             int ry = caliceRoom.getY() * TILE_SIZE + pad;
             g.setColor(new Color(0xFF, 0xFF, 0x00, 60));
@@ -370,7 +369,7 @@ public class GameGUI extends JFrame implements GameEngine.TimerListener {
             g.setStroke(new BasicStroke(1));
             g.setFont(fontBody.deriveFont(Font.BOLD, 11f));
             g.setColor(ACCENT_GOLD);
-            drawStringCentered(g, "CALICE", rx, ry, TILE_SIZE - 6);
+            drawStringCentered(g, "CÁLICE", rx, ry, TILE_SIZE - 6);
         }
     }
 
@@ -379,19 +378,18 @@ public class GameGUI extends JFrame implements GameEngine.TimerListener {
     // ─────────────────────────────────────────────────────────────────────────
 
     private void drawGradientRect(Graphics2D g, int x, int y, Color c1, Color c2) {
-        GradientPaint gp = new GradientPaint(x, y, c1, x + GameGUI.TILE_SIZE, y + GameGUI.TILE_SIZE, c2);
+        GradientPaint gp = new GradientPaint(x, y, c1, x + TILE_SIZE, y + TILE_SIZE, c2);
         g.setPaint(gp);
-        g.fillRoundRect(x, y, GameGUI.TILE_SIZE, GameGUI.TILE_SIZE, 6, 6);
+        g.fillRoundRect(x, y, TILE_SIZE, TILE_SIZE, 6, 6);
         g.setPaint(null);
     }
 
     private void drawStringCentered(Graphics2D g, String s, int rx, int ry, int offsetY) {
         FontMetrics fm = g.getFontMetrics();
-        int tx = rx + (GameGUI.TILE_SIZE - fm.stringWidth(s)) / 2;
+        int tx = rx + (TILE_SIZE - fm.stringWidth(s)) / 2;
         g.drawString(s, tx, ry + offsetY);
     }
 
-    // FIX #9: cadeado desenhado com formas geométricas puras — funciona em qualquer JVM/SO.
     private void drawLockIcon(Graphics2D g, int cx, int cy) {
         g.setStroke(new BasicStroke(2f));
         // argola
@@ -437,49 +435,56 @@ public class GameGUI extends JFrame implements GameEngine.TimerListener {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Callbacks do engine
+    // Callback do modelo (PropertyChangeListener)
     // ─────────────────────────────────────────────────────────────────────────
 
     @Override
-    public void onTempoAtualizado(int segundosRestantes) {
-        Color cor = segundosRestantes <= 10 ? new Color(0xFF4444)
-                : segundosRestantes <= 20 ? new Color(0xFFAA00)
-                : ACCENT_GOLD;
-        timeLabel.setForeground(cor);
-        timeLabel.setText("Tempo: " + segundosRestantes + "s");
-    }
+    public void propertyChange(PropertyChangeEvent evt) {
+        String prop = evt.getPropertyName();
+        switch (prop) {
+            case "tempo":
+                int seg = (int) evt.getNewValue();
+                Color corTempo = seg <= 10 ? new Color(0xFF4444)
+                        : seg <= 20 ? new Color(0xFFAA00)
+                          : ACCENT_GOLD;
+                timeLabel.setForeground(corTempo);
+                timeLabel.setText("Tempo: " + seg + "s");
+                break;
 
-    @Override
-    public void onJogoTerminado(boolean vitoria) {
-        if (vitoria) {
-            statusLabel.setForeground(ACCENT_GOLD);
-            statusLabel.setText("VITORIA! Missao cumprida!");
-            log("═════════════════════════════");
-            log("  PARABENS, AVENTUREIRO!");
-            log("  Voce encontrou o Calice!");
-            log("═════════════════════════════");
-            JOptionPane.showMessageDialog(this,
-                    "Voce venceu! Missao cumprida!",
-                    "VITORIA", JOptionPane.INFORMATION_MESSAGE);
-        } else {
-            statusLabel.setForeground(new Color(0xFF4444));
-            statusLabel.setText("Tempo esgotado - Fim de Jogo");
-            log("═════════════════════════════");
-            log("  TEMPO ESGOTADO");
-            log("  A missao fracassou...");
-            log("═════════════════════════════");
-            JOptionPane.showMessageDialog(this,
-                    "Tempo esgotado! Fim de jogo.",
-                    "FIM DE JOGO", JOptionPane.WARNING_MESSAGE);
+            case "movimentos":
+                int mov = (int) evt.getNewValue();
+                Color corMov = mov <= 3 ? new Color(0xFF4444)
+                        : mov <= 5 ? new Color(0xFFAA00)
+                          : ACCENT_PURPLE;
+                movesLabel.setForeground(corMov);
+                movesLabel.setText("Mov: " + mov);
+                break;
+
+            case "gameOver":
+                boolean vitoria = (boolean) evt.getNewValue();
+                if (vitoria) {
+                    statusLabel.setForeground(ACCENT_GOLD);
+                    statusLabel.setText("VITORIA! Missão cumprida!");
+                    log("═════════════════════════════");
+                    log("  PARABÉNS, AVENTUREIRO!");
+                    log("  Você encontrou o Cálice!");
+                    log("═════════════════════════════");
+                    JOptionPane.showMessageDialog(this,
+                            "Você venceu! Missão cumprida!",
+                            "VITÓRIA", JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    statusLabel.setForeground(new Color(0xFF4444));
+                    statusLabel.setText("Tempo esgotado - Fim de Jogo");
+                    log("═════════════════════════════");
+                    log("  TEMPO ESGOTADO");
+                    log("  A missão fracassou...");
+                    log("═════════════════════════════");
+                    JOptionPane.showMessageDialog(this,
+                            "Tempo esgotado! Fim de jogo.",
+                            "FIM DE JOGO", JOptionPane.WARNING_MESSAGE);
+                }
+                break;
         }
-    }
-    @Override
-    public void onMovimentoRealizado(int movRestantes) {
-        Color cor = movRestantes <= 3 ? new Color(0xFF4444)
-                : movRestantes <= 5 ? new Color(0xFFAA00)
-                : ACCENT_PURPLE;
-        movesLabel.setForeground(cor);
-        movesLabel.setText("Mov: " + movRestantes);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
