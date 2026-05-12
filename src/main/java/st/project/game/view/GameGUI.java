@@ -70,8 +70,11 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
+                engine.pausar();
                 // Salva o jogo antes de fechar
-                saveManager.saveGame(model, user, slot);
+                if (!engine.isJogoEncerrado()) {
+                    saveManager.saveGame(model, user, slot);
+                }
                 dispose();
                 new MainMenu(user, userManager);
             }
@@ -265,8 +268,10 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         if (!model.isJogoAtivo()) return;
         boolean moveu = engine.mover(direcao);
         if (moveu) {
-            // Salva automaticamente após cada movimento
-            saveManager.saveGame(model, user, slot);
+            // Só salva se o jogo ainda não foi encerrado pelo movimento acima
+            if (!engine.isJogoEncerrado()) {
+                saveManager.saveGame(model, user, slot);
+            }
             atualizarMapa();
             Room atual = model.getJogador().getPosicaoAtual();
             log("-> " + atual.getNome());
@@ -472,7 +477,7 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
                             "VITÓRIA", JOptionPane.INFORMATION_MESSAGE);
                     // Atualiza usuário e remove save
                     userManager.updateUserScoreAndSession(user, model.getScore());
-                    saveManager.deleteSave(user, slot);
+                    System.out.println(saveManager.deleteSave(user, slot));
                 } else {
                     statusLabel.setForeground(new Color(0xFF4444));
                     statusLabel.setText("Tempo esgotado - Fim de Jogo");
@@ -486,6 +491,7 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
                     // Em caso de derrota, também remove o save
                     saveManager.deleteSave(user, slot);
                 }
+                engine.encerrarJogo();
                 // Fecha a janela e volta ao menu
                 SwingUtilities.invokeLater(() -> {
                     dispose();
