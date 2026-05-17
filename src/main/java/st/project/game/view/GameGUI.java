@@ -469,21 +469,21 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
     // centralizando a lógica de paleta e evitando condicionais espalhadas em desenharMapa.
 
     private Color[] getFloorColors(int andar) {
-        switch (andar) {
-            case 2:  return new Color[]{ A2_NORMAL_C1, A2_NORMAL_C2, A2_VISITED_C1, A2_VISITED_C2 };
-            case 3:  return new Color[]{ A3_NORMAL_C1, A3_NORMAL_C2, A3_VISITED_C1, A3_VISITED_C2 };
-            case 4:  return new Color[]{ A4_NORMAL_C1, A4_NORMAL_C2, A4_VISITED_C1, A4_VISITED_C2 };
-            default: return new Color[]{ A1_NORMAL_C1, A1_NORMAL_C2, A1_VISITED_C1, A1_VISITED_C2 };
-        }
+        return switch (andar) {
+            case 2 -> new Color[]{A2_NORMAL_C1, A2_NORMAL_C2, A2_VISITED_C1, A2_VISITED_C2};
+            case 3 -> new Color[]{A3_NORMAL_C1, A3_NORMAL_C2, A3_VISITED_C1, A3_VISITED_C2};
+            case 4 -> new Color[]{A4_NORMAL_C1, A4_NORMAL_C2, A4_VISITED_C1, A4_VISITED_C2};
+            default -> new Color[]{A1_NORMAL_C1, A1_NORMAL_C2, A1_VISITED_C1, A1_VISITED_C2};
+        };
     }
 
     private Color getFloorPathColor(int andar) {
-        switch (andar) {
-            case 2:  return A2_PATH;
-            case 3:  return A3_PATH;
-            case 4:  return A4_PATH;
-            default: return A1_PATH;
-        }
+        return switch (andar) {
+            case 2 -> A2_PATH;
+            case 3 -> A3_PATH;
+            case 4 -> A4_PATH;
+            default -> A1_PATH;
+        };
     }
 
     private void drawGradientRect(Graphics2D g, int x, int y, Color c1, Color c2) {
