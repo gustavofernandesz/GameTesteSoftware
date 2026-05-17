@@ -7,7 +7,7 @@ public class Item implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    public enum Type { CHAVE, POCAO_VELOCIDADE, AMULETO_VISAO, CALICE }
+    public enum Type { CHAVE, POCAO_VELOCIDADE, AMULETO_VISAO, CALICE, LUPA }
 
     private String nome;
     private Type tipo;

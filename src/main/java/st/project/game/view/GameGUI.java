@@ -32,6 +32,34 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
     private static final Color TILE_BORDER   = new Color(0x3A3A60);
     private static final Color PATH_COLOR    = new Color(0x60, 0x60, 0xB0);
 
+
+    private static final Color A1_NORMAL_C1  = new Color(0x1E1E3C);
+    private static final Color A1_NORMAL_C2  = new Color(0x26264E);
+    private static final Color A1_VISITED_C1 = new Color(0x00FF80);
+    private static final Color A1_VISITED_C2 = new Color(0x32325A);
+    private static final Color A1_PATH       = new Color(0x60, 0x60, 0xB0);
+
+    // Andar 2: rosa
+    private static final Color A2_NORMAL_C1  = new Color(0x2E1A2E);
+    private static final Color A2_NORMAL_C2  = new Color(0x4A2645);
+    private static final Color A2_VISITED_C1 = new Color(0xFF66CC);
+    private static final Color A2_VISITED_C2 = new Color(0x5A2050);
+    private static final Color A2_PATH       = new Color(0xB0, 0x50, 0xA0);
+
+    // Andar 3: amarelo/âmbar
+    private static final Color A3_NORMAL_C1  = new Color(0x28220A);
+    private static final Color A3_NORMAL_C2  = new Color(0x3C3410);
+    private static final Color A3_VISITED_C1 = new Color(0xFFD700);
+    private static final Color A3_VISITED_C2 = new Color(0x4A3C00);
+    private static final Color A3_PATH       = new Color(0xA0, 0x88, 0x00);
+
+    // Andar 4: vermelho
+    private static final Color A4_NORMAL_C1  = new Color(0x2E0808);
+    private static final Color A4_NORMAL_C2  = new Color(0x4A1010);
+    private static final Color A4_VISITED_C1 = new Color(0xFF4444);
+    private static final Color A4_VISITED_C2 = new Color(0x5A0C0C);
+    private static final Color A4_PATH       = new Color(0xB0, 0x20, 0x20);
+
     private static final int TILE_SIZE = 100;
 
     private final GameModel model;
@@ -43,6 +71,8 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
     private JLabel movesLabel;
     private JLabel levelLabel;   // novo
     private JLabel scoreLabel;   // novo
+
+    private JLabel andarLabel;         // andar atual
 
     private final JTextArea logArea;
 
@@ -120,6 +150,10 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         movesLabel.setText("Mov: " + model.getMovimentosRestantes());
         levelLabel.setText("Nível: " + model.getNivel());
         scoreLabel.setText("Score: " + model.getScore());
+
+        //Adição de inicialização do andarLabel no construtor
+
+        andarLabel.setText("Andar: " + model.getAndarAtual() + "/4");
         log("Bem-vindo, aventureiro!");
         log("  Encontre o Cálice Mágico.");
         log("  Você precisa da Chave Encantada");
@@ -131,22 +165,24 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
     }
 
     private JPanel buildTopPanel() {
-        JPanel top = new JPanel(new GridLayout(1, 6));
+        JPanel top = new JPanel(new GridLayout(1, 7));
         top.setBackground(BG_PANEL);
         top.setBorder(new MatteBorder(0, 0, 2, 0, ACCENT_GOLD));
         top.setPreferredSize(new Dimension(0, 52));
 
-        timeLabel   = makeLabel("Tempo: 60s",          fontTitle, ACCENT_GOLD);
-        movesLabel   = makeLabel("Mov: 7",              fontTitle, ACCENT_PURPLE);
-        levelLabel  = makeLabel("Nível: 1",             fontBody,  ACCENT_TEAL);
-        scoreLabel  = makeLabel("Score: 0",             fontBody,  ACCENT_GOLD);
-        JLabel title = makeLabel("CÁLICE SAGRADO",      fontTitle, TEXT_LIGHT);
-        statusLabel  = makeLabel("Explorando...",       fontBody,  ACCENT_TEAL);
+        timeLabel   = makeLabel("Tempo: 120s",         fontTitle, ACCENT_GOLD);
+        movesLabel  = makeLabel("Mov: 20",             fontTitle, ACCENT_PURPLE);
+        levelLabel  = makeLabel("Nível: 1",            fontBody,  ACCENT_TEAL);
+        scoreLabel  = makeLabel("Score: 0",            fontBody,  ACCENT_GOLD);
+        andarLabel  = makeLabel("Andar: 1/4",          fontTitle, new Color(0xFF8C00));
+        JLabel title = makeLabel("CÁLICE SAGRADO",     fontTitle, TEXT_LIGHT);
+        statusLabel  = makeLabel("Explorando...",      fontBody,  ACCENT_TEAL);
 
         top.add(wrapCenter(timeLabel));
         top.add(wrapCenter(movesLabel));
         top.add(wrapCenter(levelLabel));
         top.add(wrapCenter(scoreLabel));
+        top.add(wrapCenter(andarLabel));
         top.add(wrapCenter(title));
         top.add(wrapCenter(statusLabel));
         return top;
@@ -184,7 +220,7 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         JPanel wrapper = new JPanel(new BorderLayout(0, 6));
         wrapper.setBackground(BG_PANEL);
 
-        JLabel hint = makeLabel("[ WASD / Botões ]", fontMono.deriveFont(10f), TEXT_DIM);
+        JLabel hint = makeLabel("[ WASD / setas ]", fontMono.deriveFont(10f), TEXT_DIM);
         wrapper.add(hint, BorderLayout.NORTH);
 
         JPanel dpad = new JPanel(new GridBagLayout());
@@ -296,13 +332,21 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
         Stack<Room> historico = model.getJogador().getHistorico();
         java.util.Set<Room> visitadas = new java.util.HashSet<>(historico);
 
+        // São desenhadas as salas do andar atual do jogador.
+        // O caminho (path) também é filtrado para mostrar apenas movimentos dentro do andar.
+        // As cores de tiles e trilha variam conforme o andar (via getFloorColors/getFloorPathColor).
+
+        int andarParaPath = model.getAndarAtual();
+        Color pathColor = getFloorPathColor(model.getAndarAtual());
         if (historico.size() > 1) {
-            g.setColor(PATH_COLOR);
+            g.setColor(pathColor);
             g.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND,
                     1f, new float[]{6, 4}, 0));
             Room anterior = null;
             for (Room room : historico) {
-                if (anterior != null) {
+                if (anterior != null
+                        && anterior.getAndar() == andarParaPath
+                        && room.getAndar()     == andarParaPath) {
                     int x1 = anterior.getX() * TILE_SIZE + pad + TILE_SIZE / 2;
                     int y1 = anterior.getY() * TILE_SIZE + pad + TILE_SIZE / 2;
                     int x2 = room.getX()     * TILE_SIZE + pad + TILE_SIZE / 2;
@@ -314,20 +358,29 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
             g.setStroke(new BasicStroke(1));
         }
 
+        int andarAtual = model.getAndarAtual();
+        boolean chaveVisivel = model.isChaveVisivel();
+        Room salaDaChave = model.getSalaDaChave();
+
         for (Room room : model.getSalas().values()) {
+            // Só desenha salas do andar atual
+            if (room.getAndar() != andarAtual) continue;
+
             int     rx       = room.getX() * TILE_SIZE + pad;
             int     ry       = room.getY() * TILE_SIZE + pad;
             boolean isPlayer = room == model.getJogador().getPosicaoAtual();
             boolean visited  = visitadas.contains(room);
 
+            Color[] floorColors = getFloorColors(andarAtual);
+            // floorColors: [0]=normal_c1 [1]=normal_c2 [2]=visited_c1 [3]=visited_c2
             if (isPlayer) {
                 drawGradientRect(g, rx, ry, new Color(0x1A3A1A), TILE_PLAYER);
             } else if (room.isBloqueada()) {
                 drawGradientRect(g, rx, ry, TILE_LOCKED, new Color(0x22224A));
             } else if (visited) {
-                drawGradientRect(g, rx, ry, TILE_VISITED, new Color(0x32325A));
+                drawGradientRect(g, rx, ry, floorColors[2], floorColors[3]);
             } else {
-                drawGradientRect(g, rx, ry, TILE_NORMAL, new Color(0x26264E));
+                drawGradientRect(g, rx, ry, floorColors[0], floorColors[1]);
             }
 
             if (isPlayer) {
@@ -343,18 +396,33 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
             g.drawRoundRect(rx, ry, TILE_SIZE - 1, TILE_SIZE - 1, 6, 6);
             g.setStroke(new BasicStroke(1));
 
-            String nome = room.getNome().length() > 10
-                    ? room.getNome().substring(0, 10)
-                    : room.getNome();
-            g.setFont(fontMono.deriveFont(16f));
-            g.setColor(isPlayer ? ACCENT_TEAL : room.isBloqueada() ? TEXT_DIM : TEXT_LIGHT);
-            drawStringCentered(g, nome, rx, ry, 20);
+            if (room.isEscada() && !isPlayer) {
+                g.setColor(new Color(0xFF8C00, true));
+                g.setStroke(new BasicStroke(2f));
+                g.drawRoundRect(rx + 2, ry + 2, TILE_SIZE - 5, TILE_SIZE - 5, 4, 4);
+                g.setStroke(new BasicStroke(1));
+            }
+
+            String label;
+            if (room.isEscadaCima()) {
+                label = "▲ SOBE";
+            } else if (room.isEscadaBaixo()) {
+                label = "▼ DESCE";
+            } else {
+                String n = room.getNome();
+                label = n.length() > 10 ? n.substring(0, 10) : n;
+            }
+            g.setFont(fontMono.deriveFont(room.isEscada() ? 13f : 16f));
+            g.setColor(room.isEscadaCima()  ? new Color(0xFF8C00) :
+                    room.isEscadaBaixo() ? new Color(0xFF8C00) :
+                            isPlayer ? ACCENT_TEAL : room.isBloqueada() ? TEXT_DIM : TEXT_LIGHT);
+            drawStringCentered(g, label, rx, ry, 20);
 
             if (room.isBloqueada()) {
                 drawLockIcon(g, rx + TILE_SIZE / 2, ry + TILE_SIZE / 2 + 8);
             }
 
-            if (!room.getItems().isEmpty()) {
+            if (temItenVisivelNaSala(room, chaveVisivel, salaDaChave)) {
                 drawItemGem(g, rx + TILE_SIZE - 18, ry + 5);
             }
 
@@ -365,17 +433,56 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
 
         if (model.isChaveAtiva()) {
             Room caliceRoom = model.getMissao().getSalaCalice();
-            int rx = caliceRoom.getX() * TILE_SIZE + pad;
-            int ry = caliceRoom.getY() * TILE_SIZE + pad;
-            g.setColor(new Color(0xFF, 0xFF, 0x00, 60));
-            g.fillRoundRect(rx, ry, TILE_SIZE, TILE_SIZE, 6, 6);
-            g.setColor(ACCENT_GOLD);
-            g.setStroke(new BasicStroke(2.5f));
-            g.drawRoundRect(rx, ry, TILE_SIZE - 1, TILE_SIZE - 1, 6, 6);
-            g.setStroke(new BasicStroke(1));
-            g.setFont(fontBody.deriveFont(Font.BOLD, 11f));
-            g.setColor(ACCENT_GOLD);
-            drawStringCentered(g, "CÁLICE", rx, ry, TILE_SIZE - 6);
+            if (caliceRoom.getAndar() == andarAtual) {
+                int rx = caliceRoom.getX() * TILE_SIZE + pad;
+                int ry = caliceRoom.getY() * TILE_SIZE + pad;
+                g.setColor(new Color(0xFF, 0xFF, 0x00, 60));
+                g.fillRoundRect(rx, ry, TILE_SIZE, TILE_SIZE, 6, 6);
+                g.setColor(ACCENT_GOLD);
+                g.setStroke(new BasicStroke(2.5f));
+                g.drawRoundRect(rx, ry, TILE_SIZE - 1, TILE_SIZE - 1, 6, 6);
+                g.setStroke(new BasicStroke(1));
+                g.setFont(fontBody.deriveFont(Font.BOLD, 11f));
+                g.setColor(ACCENT_GOLD);
+                drawStringCentered(g, "CÁLICE", rx, ry, TILE_SIZE - 6);
+            }
+        }
+    }
+
+
+    // - Se o item É a lupa → bolinha sempre visível.
+    // - Se o item NÃO é a lupa e o jogador NÃO tem a lupa → bolinha NÃO aparece.
+    // - Se o item NÃO é a lupa e o jogador JÁ tem a lupa → bolinha aparece normalmente.
+
+    private boolean temItenVisivelNaSala(Room room, boolean chaveVisivel, Room salaDaChave) {
+        for (st.project.game.model.Item item : room.getItems()) {
+            if (item.getTipo() == st.project.game.model.Item.Type.LUPA) {
+                return true; // lupa sempre visível
+            }
+            // [ALTERAÇÃO] Qualquer item que não é a lupa só aparece se o jogador já tem a lupa
+            if (chaveVisivel) return true;
+        }
+        return false;
+    }
+
+    // Auxiliares que retornam as cores corretas de tile e trilha para cada andar,
+    // centralizando a lógica de paleta e evitando condicionais espalhadas em desenharMapa.
+
+    private Color[] getFloorColors(int andar) {
+        switch (andar) {
+            case 2:  return new Color[]{ A2_NORMAL_C1, A2_NORMAL_C2, A2_VISITED_C1, A2_VISITED_C2 };
+            case 3:  return new Color[]{ A3_NORMAL_C1, A3_NORMAL_C2, A3_VISITED_C1, A3_VISITED_C2 };
+            case 4:  return new Color[]{ A4_NORMAL_C1, A4_NORMAL_C2, A4_VISITED_C1, A4_VISITED_C2 };
+            default: return new Color[]{ A1_NORMAL_C1, A1_NORMAL_C2, A1_VISITED_C1, A1_VISITED_C2 };
+        }
+    }
+
+    private Color getFloorPathColor(int andar) {
+        switch (andar) {
+            case 2:  return A2_PATH;
+            case 3:  return A3_PATH;
+            case 4:  return A4_PATH;
+            default: return A1_PATH;
         }
     }
 
@@ -441,7 +548,7 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
                 int seg = (int) evt.getNewValue();
                 Color corTempo = seg <= 10 ? new Color(0xFF4444)
                         : seg <= 20 ? new Color(0xFFAA00)
-                          : ACCENT_GOLD;
+                        : ACCENT_GOLD;
                 timeLabel.setForeground(corTempo);
                 timeLabel.setText("Tempo: " + seg + "s");
                 break;
@@ -450,7 +557,7 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
                 int mov = (int) evt.getNewValue();
                 Color corMov = mov <= 3 ? new Color(0xFF4444)
                         : mov <= 5 ? new Color(0xFFAA00)
-                          : ACCENT_PURPLE;
+                        : ACCENT_PURPLE;
                 movesLabel.setForeground(corMov);
                 movesLabel.setText("Mov: " + mov);
                 break;
@@ -461,6 +568,22 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
 
             case "nivel":
                 levelLabel.setText("Nível: " + evt.getNewValue());
+                break;
+
+            // "andar": atualiza o andarLabel e redesenha o mapa ao trocar de andar via escada.
+            // "lupaObtida": exibe mensagem no log informando que a Chave foi revelada.
+
+            case "andar":
+                int novoAndar = (int) evt.getNewValue();
+                andarLabel.setText("Andar: " + novoAndar + "/4");
+                log("── Andar " + novoAndar + " ──");
+                atualizarMapa();
+                break;
+
+            case "lupaObtida":
+                // [ALTERAÇÃO] Mensagem atualizada: agora TODOS os itens são revelados pela lupa
+                log("✦ Lupa obtida! Todos os itens ocultos foram revelados.");
+                atualizarMapa();
                 break;
 
             case "gameOver":
