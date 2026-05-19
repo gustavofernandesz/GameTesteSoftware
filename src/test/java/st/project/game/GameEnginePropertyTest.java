@@ -18,11 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Dublê de teste: nenhum.
  * ────────────────────────────────────────────────────────────────────────────
  */
-@DisplayName("GameModel – Testes Baseados em Propriedade")
+
 class GameEnginePropertyTest {
 
     @Property(tries = 100)
-    @DisplayName("Propriedade: mapa gerado sempre respeita limites e vizinhança cardinal")
     void mapaGeradoSempreRespeitaLimitesEVizinhanca(@ForAll long seed) {
         GameModel model = new GameModel(seed);
 
@@ -39,7 +38,6 @@ class GameEnginePropertyTest {
     }
 
     @Property(tries = 80)
-    @DisplayName("Propriedade: movimentos válidos nunca deixam o jogador fora dos limites")
     void movimentosValidosNuncaSaemDosLimites(@ForAll long seed,
                                                @ForAll("sequenciasDirecoes") List<String> direcoes) {
         GameModel model = new GameModel(seed);
@@ -54,7 +52,6 @@ class GameEnginePropertyTest {
     }
 
     @Property(tries = 80)
-    @DisplayName("Propriedade: movimento inválido preserva posição e movimentos restantes")
     void movimentoInvalidoPreservaEstadoEssencial(@ForAll long seed,
                                                    @ForAll("direcoesInvalidas") String direcaoInvalida) {
         GameModel model = new GameModel(seed);
@@ -69,7 +66,6 @@ class GameEnginePropertyTest {
     }
 
     @Property(tries = 80)
-    @DisplayName("Propriedade: item não-LUPA nunca é coletado sem a lupa")
     void itemNaoLupaNuncaEColetadoSemLupa(@ForAll long seed,
                                            @ForAll("tiposOcultos") Item.Type tipo) {
         GameModel model = new GameModel(seed);
@@ -86,7 +82,6 @@ class GameEnginePropertyTest {
     }
 
     @Property(tries = 80)
-    @DisplayName("Propriedade: recursos únicos da sessão não nascem duplicados no mapa")
     void recursosUnicosNaoNascemDuplicados(@ForAll long seed) {
         GameModel model = new GameModel(seed);
 
