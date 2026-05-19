@@ -87,6 +87,24 @@ public class GameModel implements Serializable {
         int oldNivel = getNivel();
         int oldAndar = getAndarAtual();
 
+        if (destino.getNome().equals("sagrado") && !jogador.possuiItem(Item.Type.CHAVE)) {
+            int oldMov = movimentosRestantes;
+            movimentosRestantes--;
+            pcs.firePropertyChange("movimentos", oldMov, movimentosRestantes);
+
+            Room entrada = salas.get("entrada");
+            jogador.moverPara(entrada); // entrada não é bloqueada, move sempre
+            pcs.firePropertyChange("alcapao", null, true);
+
+            int novoAndar = getAndarAtual();
+            if (novoAndar != oldAndar) {
+                pcs.firePropertyChange("andar", oldAndar, novoAndar);
+            }
+            pcs.firePropertyChange("score", oldScore, getScore());
+            pcs.firePropertyChange("nivel", oldNivel, getNivel());
+            return true; // movimento ocorreu (queda pelo alçapão)
+        }
+
         boolean moveu = jogador.moverPara(destino);
         if (moveu) {
             int oldMov = movimentosRestantes;
@@ -120,6 +138,12 @@ public class GameModel implements Serializable {
 
             coletarItensSala();
             missao.verificarProgresso(jogador);
+
+            if (missao.isMissaoConcluida()) {
+                finalizarJogo(true);
+            } else if (movimentosRestantes <= 0) {
+                finalizarJogo(false);
+            }
 
             pcs.firePropertyChange("score", oldScore, getScore());
             pcs.firePropertyChange("nivel", oldNivel, getNivel());
