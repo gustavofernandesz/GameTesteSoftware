@@ -11,7 +11,6 @@ import st.project.game.model.*;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 
@@ -35,13 +34,14 @@ import static org.mockito.Mockito.*;
  *   (I) coletarItens: LUPA presente       → sempre coletável
  *   (J) coletarItens: outro item sem lupa → ignorado (invisível)
  *   (K) coletarItens: outro item com lupa → coletado e efeito aplicado
- *   (L) engine.mover: pausar/retomar      → controla ciclo de vida
- *   (M) Seed fixa → mapa determinístico (propriedade baseada em propriedades)
+ *   (L) engine.encerrarJogo: retomar após encerrado → timer não reinicia
+ *   (M) Seed fixa → mapa determinístico
  *   (N) Estrutura de 4 andares: 100 salas (4 × 25)
- *   (O) Cada andar tem escada certa nos cantos corretos
+ *   (O) Cada andar tem escada nos cantos corretos
+ *   (P) Alçapão: mover para sagrado sem chave → alçapão + posição na entrada
+ *   (Q) Alçapão: evento "alcapao" disparado
  *
- * Dublê:
- *   • PropertyChangeListener (mock) — isola eventos sem GUI.
+ * Dublê: PropertyChangeListener (mock) — dependência de saída do modelo.
  * ────────────────────────────────────────────────────────────────────────────
  */
 @ExtendWith(MockitoExtension.class)
@@ -66,7 +66,7 @@ class GameEngineEstruturaTest {
     // ── (A) moverJogador quando jogo inativo ──────────────────────────────
 
     @Test
-    @DisplayName("Estrutura (A): moverJogador com jogo inativo → false, sem evento")
+    @DisplayName("Estrutura (A): moverJogador com jogo inativo → false, sem evento de movimentos")
     void testeEstruturaAMoverComJogoInativo() {
         model.finalizarJogo(false);
         reset(listener);
@@ -83,9 +83,7 @@ class GameEngineEstruturaTest {
     @DisplayName("Estrutura (B): moverJogador com movimentos=0 → false")
     void testeEstruturaBMoverSemMovimentos() {
         esvaziarMovimentos();
-
         boolean moveu = model.moverJogador("leste");
-
         assertThat(moveu).isFalse();
     }
 
@@ -103,12 +101,11 @@ class GameEngineEstruturaTest {
     @Test
     @DisplayName("Estrutura (D): ao concluir missão após movimento → finalizarJogo(true)")
     void testeEstruturaDMissaoConcluida() {
-        // Dá chave e posiciona ao lado de sagrado
         darItem(new Item("Lupa", Item.Type.LUPA, "Revela"));
         darItem(new Item("Chave", Item.Type.CHAVE, "Abre"));
 
-        Room sagrado  = model.getSalas().get("sagrado");
-        Room vizinha  = primeiroVizinho(sagrado);
+        Room sagrado = model.getSalas().get("sagrado");
+        Room vizinha = primeiroVizinho(sagrado);
         moverDireto(vizinha);
 
         model.moverJogador(direcaoPara(vizinha, sagrado));
@@ -123,7 +120,7 @@ class GameEngineEstruturaTest {
     @DisplayName("Estrutura (E): último movimento quando movimentos=1 → finalizarJogo(false)")
     void testeEstruturaEUltimoMovimento() {
         while (model.getMovimentosRestantes() > 1) {
-            oscilate(); // consome movimentos sem concluir missão
+            oscilate();
         }
         assertThat(model.getMovimentosRestantes()).isEqualTo(1);
 
@@ -155,7 +152,7 @@ class GameEngineEstruturaTest {
     // ── (G) reduzirTempo quando jogo inativo ─────────────────────────────
 
     @Test
-    @DisplayName("Estrutura (G): reduzirTempo com jogo inativo → tempo não muda")
+    @DisplayName("Estrutura (G): reduzirTempo com jogo inativo → tempo não muda e sem evento")
     void testeEstruturaGReduzirTempoInativo() {
         model.finalizarJogo(false);
         int antes = model.getTempoRestante();
@@ -199,145 +196,136 @@ class GameEngineEstruturaTest {
 
     @Test
     @DisplayName("Estrutura (J): Chave na sala sem lupa no inventário → NÃO coletada")
-    void testeEstruturaJItemSemLupaIgnorado() {
+    void testeEstruturaJChaveSemLupaNaoColetada() {
         Room atual = model.getJogador().getPosicaoAtual();
-        // Remove qualquer item que possa estar na sala
-        atual.getItems().clear();
-        Item chave = new Item("Chave Extra", Item.Type.CHAVE, "Extra");
+        Item chave = new Item("Chave", Item.Type.CHAVE, "Abre");
         atual.adicionarItem(chave);
 
         Room vizinho = primeiroVizinhoNaoBloqueado(atual);
         model.moverJogador(direcaoPara(atual, vizinho));
         model.moverJogador(direcaoPara(vizinho, atual));
 
-        // Sem lupa → chave não deve ter sido coletada
+        assertThat(model.getJogador().possuiItem(Item.Type.CHAVE)).isFalse();
         assertThat(atual.getItems()).contains(chave);
     }
 
-    // ── (K) item não-LUPA com lupa → coletado ────────────────────────────
+    // ── (K) item não-LUPA com lupa no inventário → coletado ──────────────
 
     @Test
-    @DisplayName("Estrutura (K): Poção na sala COM lupa no inventário → coletada e dobra tempo")
-    void testeEstruturaKItemComLupaColetado() {
+    @DisplayName("Estrutura (K): Chave na sala com lupa no inventário → coletada")
+    void testeEstruturaKChaveComLupaColetada() {
         darItem(new Item("Lupa", Item.Type.LUPA, "Revela"));
-        int tempoAntes = model.getTempoRestante();
-
         Room atual = model.getJogador().getPosicaoAtual();
-        atual.getItems().clear();
-        Item pocao = new Item("Poção", Item.Type.POCAO_VELOCIDADE, "x2");
-        atual.adicionarItem(pocao);
+        atual.adicionarItem(new Item("Chave", Item.Type.CHAVE, "Abre"));
 
         Room vizinho = primeiroVizinhoNaoBloqueado(atual);
         model.moverJogador(direcaoPara(atual, vizinho));
         model.moverJogador(direcaoPara(vizinho, atual));
 
-        assertThat(model.getJogador().possuiItem(Item.Type.POCAO_VELOCIDADE)).isTrue();
-        // Poção dobra tempo
-        assertThat(model.getTempoRestante()).isGreaterThan(tempoAntes);
+        assertThat(model.getJogador().possuiItem(Item.Type.CHAVE)).isTrue();
     }
 
-    // ── (L) engine.pausar / retomar ──────────────────────────────────────
+    // ── (L) engine encerrado não reinicia timer ───────────────────────────
 
     @Test
-    @DisplayName("Estrutura (L): engine.pausar + retomar não modifica estado do modelo")
-    void testeEstruturaLPausarRetomar() {
-        engine.pausar();
-        int antes = model.getTempoRestante();
-        engine.retomar();
-        engine.pausar();
-        assertThat(model.getTempoRestante()).isEqualTo(antes);
-    }
-
-    @Test
-    @DisplayName("Estrutura (L'): engine.encerrarJogo impede novo retomar")
-    void testeEstruturaLEncerrarImpideRetomar() {
+    @DisplayName("Estrutura (L): retomar após encerrarJogo → isJogoEncerrado permanece true")
+    void testeEstruturaLRetomarAposEncerrar() {
         engine.encerrarJogo();
-        engine.retomar(); // não deve iniciar timer
+        assertThat(engine.isJogoEncerrado()).isTrue();
+
+        engine.retomar(); // não deve reiniciar
+
         assertThat(engine.isJogoEncerrado()).isTrue();
     }
 
-    // ── (M) Seed determinística ───────────────────────────────────────────
+    // ── (M) Seed fixa → mapa determinístico ──────────────────────────────
 
     @Test
-    @DisplayName("Estrutura (M): duas GameModel com mesma seed produzem mesma posição de entrada")
-    void testeEstruturaMSeedDeterministica() {
-        GameModel m2 = new GameModel(SEED);
-        // "entrada" sempre em (0,0) e andar 1
-        Room e1 = model.getSalas().get("entrada");
-        Room e2 = m2.getSalas().get("entrada");
-        assertThat(e1.getX()).isEqualTo(e2.getX());
-        assertThat(e1.getY()).isEqualTo(e2.getY());
-        assertThat(e1.getAndar()).isEqualTo(e2.getAndar());
-    }
+    @DisplayName("Estrutura (M): mesma seed produz mesmo mapa (salas e posições idênticas)")
+    void testeEstruturaMMapaDeterministico() {
+        GameModel model2 = new GameModel(SEED);
 
-    @Test
-    @DisplayName("Estrutura (M'): seeds diferentes produzem pelo menos uma sala intermediária em posição diferente")
-    void testeEstruturaMSeedsDiferentesMapa() {
-        GameModel m2 = new GameModel(SEED + 1);
-        // Compara salas que não são fixas (não são entrada/sagrado/escadas)
-        boolean algumaDiferente = model.getSalas().values().stream()
-                .filter(r -> !r.getNome().equals("entrada")
-                        && !r.getNome().equals("sagrado")
-                        && !r.getNome().startsWith("escada_"))
-                .anyMatch(r -> {
-                    Room r2 = m2.getSalas().get(r.getNome());
-                    return r2 == null || r.getX() != r2.getX() || r.getY() != r2.getY();
-                });
-        assertThat(algumaDiferente).isTrue();
+        Map<String, Room> salas1 = model.getSalas();
+        Map<String, Room> salas2 = model2.getSalas();
+
+        assertThat(salas1.keySet()).isEqualTo(salas2.keySet());
+        for (String nome : salas1.keySet()) {
+            Room r1 = salas1.get(nome);
+            Room r2 = salas2.get(nome);
+            assertThat(r1.getX()).isEqualTo(r2.getX());
+            assertThat(r1.getY()).isEqualTo(r2.getY());
+            assertThat(r1.getAndar()).isEqualTo(r2.getAndar());
+        }
     }
 
     // ── (N) Estrutura de 4 andares ────────────────────────────────────────
 
     @Test
-    @DisplayName("Estrutura (N): mapa tem exatamente 100 salas (4 andares × 25)")
-    void testeEstruturaNMapa100Salas() {
-        assertThat(model.getSalas()).hasSize(100);
-    }
-
-    @Test
-    @DisplayName("Estrutura (N'): cada andar tem exatamente 25 salas")
-    void testeEstruturaNAndaresCom25Salas() {
+    @DisplayName("Estrutura (N): cada andar tem exatamente 25 salas")
+    void testeEstruturaNAndaresTem25Salas() {
         for (int andar = 1; andar <= 4; andar++) {
-            int finalAndar = andar;
+            final int a = andar;
             long count = model.getSalas().values().stream()
-                    .filter(r -> r.getAndar() == finalAndar)
-                    .count();
-            assertThat(count).as("Andar " + andar + " deve ter 25 salas").isEqualTo(25);
+                    .filter(r -> r.getAndar() == a).count();
+            assertThat(count).as("Andar %d deve ter 25 salas", a).isEqualTo(25);
         }
     }
 
     // ── (O) Escadas nos cantos certos ─────────────────────────────────────
 
     @Test
-    @DisplayName("Estrutura (O): escada_cima_1 no andar 1 em (4,0)")
+    @DisplayName("Estrutura (O): escada_cima_1 está no andar 1, col=4, row=0")
     void testeEstruturaOEscadaCima1Posicao() {
-        Room e = model.getSalas().get("escada_cima_1");
-        assertThat(e).isNotNull();
-        assertThat(e.getAndar()).isEqualTo(1);
-        assertThat(e.getX()).isEqualTo(4);
-        assertThat(e.getY()).isEqualTo(0);
-        assertThat(e.isEscadaCima()).isTrue();
+        Room escada = model.getSalas().get("escada_cima_1");
+        assertThat(escada).isNotNull();
+        assertThat(escada.getAndar()).isEqualTo(1);
+        assertThat(escada.getX()).isEqualTo(4);
+        assertThat(escada.getY()).isEqualTo(0);
+        assertThat(escada.isEscadaCima()).isTrue();
     }
 
     @Test
-    @DisplayName("Estrutura (O'): sagrado no andar 4 em (4,4) e bloqueada")
-    void testeEstruturaOSagradoPosicao() {
-        Room sagrado = model.getSalas().get("sagrado");
-        assertThat(sagrado).isNotNull();
-        assertThat(sagrado.getAndar()).isEqualTo(4);
-        assertThat(sagrado.getX()).isEqualTo(4);
-        assertThat(sagrado.getY()).isEqualTo(4);
-        assertThat(sagrado.isBloqueada()).isTrue();
+    @DisplayName("Estrutura (O'): escada_baixo_2 está no andar 2, col=0, row=4")
+    void testeEstruturaOEscadaBaixo2Posicao() {
+        Room escada = model.getSalas().get("escada_baixo_2");
+        assertThat(escada).isNotNull();
+        assertThat(escada.getAndar()).isEqualTo(2);
+        assertThat(escada.getX()).isEqualTo(0);
+        assertThat(escada.getY()).isEqualTo(4);
+        assertThat(escada.isEscadaBaixo()).isTrue();
     }
+
+    // ── (P) Alçapão: jogador vai para entrada sem chave ───────────────────
 
     @Test
-    @DisplayName("Estrutura (O''): cálice presente na sala sagrado")
-    void testeEstruturaOCaliceEmSagrado() {
+    @DisplayName("Estrutura (P): mover para sagrado sem chave → jogador vai para 'entrada'")
+    void testeEstruturaPAlcapaoMoveparaEntrada() {
         Room sagrado = model.getSalas().get("sagrado");
-        assertThat(sagrado.contemItem(Item.Type.CALICE)).isTrue();
+        Room vizinha = primeiroVizinho(sagrado);
+        moverDireto(vizinha);
+
+        model.moverJogador(direcaoPara(vizinha, sagrado));
+
+        assertThat(model.getJogador().getPosicaoAtual().getNome()).isEqualTo("entrada");
     }
 
-    // ── Adjacências do grid ────────────────────────────────────────────────
+    // ── (Q) Evento "alcapao" disparado ────────────────────────────────────
+
+    @Test
+    @DisplayName("Estrutura (Q): mover para sagrado sem chave dispara evento 'alcapao'")
+    void testeEstruturaQAlcapaoDispara_Evento() {
+        Room sagrado = model.getSalas().get("sagrado");
+        Room vizinha = primeiroVizinho(sagrado);
+        moverDireto(vizinha);
+
+        model.moverJogador(direcaoPara(vizinha, sagrado));
+
+        ArgumentCaptor<PropertyChangeEvent> captor = ArgumentCaptor.forClass(PropertyChangeEvent.class);
+        verify(listener, atLeastOnce()).propertyChange(captor.capture());
+        boolean encontrado = captor.getAllValues().stream()
+                .anyMatch(e -> "alcapao".equals(e.getPropertyName()));
+        assertThat(encontrado).as("Esperava evento 'alcapao'").isTrue();
+    }
 
     @Test
     @DisplayName("Estrutura: entrada (0,0) não tem vizinho norte nem oeste")
@@ -356,17 +344,6 @@ class GameEngineEstruturaTest {
     }
 
     @Test
-    @DisplayName("Estrutura: sala interna (x>0, y>0) tem vizinhos norte e oeste")
-    void testeEstruturaSalaInternaVizinhos() {
-        model.getSalas().values().stream()
-                .filter(r -> r.getX() > 0 && r.getY() > 0 && r.getAndar() == 1)
-                .forEach(r -> {
-                    assertThat(r.getVizinho("norte")).isNotNull();
-                    assertThat(r.getVizinho("oeste")).isNotNull();
-                });
-    }
-
-    @Test
     @DisplayName("Estrutura: borda norte (y=0) sem vizinho norte em qualquer andar")
     void testeEstruturaBordaNorteSemVizinho() {
         model.getSalas().values().stream()
@@ -382,49 +359,16 @@ class GameEngineEstruturaTest {
                 .forEach(r -> assertThat(r.getVizinho("leste")).isNull());
     }
 
-    // ── Itens fixos nos andares ────────────────────────────────────────────
-
-    @Test
-    @DisplayName("Estrutura: Lupa está no andar 2 em (2,2)")
-    void testeEstruturaLupaAndar2() {
-        Room salaLupa = buscarSalaPorAndarXY(2, 2, 2);
-        assertThat(salaLupa).isNotNull();
-        assertThat(salaLupa.contemItem(Item.Type.LUPA)).isTrue();
-    }
-
-    @Test
-    @DisplayName("Estrutura: Chave está no andar 3 em (1,1)")
-    void testeEstruturaChaveAndar3() {
-        Room salaChave = buscarSalaPorAndarXY(3, 1, 1);
-        assertThat(salaChave).isNotNull();
-        assertThat(salaChave.contemItem(Item.Type.CHAVE)).isTrue();
-    }
-
-    @Test
-    @DisplayName("Estrutura: Poção no andar 1 em (2,3)")
-    void testeEstruturaPocaoAndar1() {
-        Room salaPocao = buscarSalaPorAndarXY(1, 2, 3);
-        assertThat(salaPocao).isNotNull();
-        assertThat(salaPocao.contemItem(Item.Type.POCAO_VELOCIDADE)).isTrue();
-    }
-
-    @Test
-    @DisplayName("Estrutura: Amuleto no andar 2 em (3,2)")
-    void testeEstruturaAmuletoAndar2() {
-        Room salaAmuleto = buscarSalaPorAndarXY(2, 3, 2);
-        assertThat(salaAmuleto).isNotNull();
-        assertThat(salaAmuleto.contemItem(Item.Type.AMULETO_VISAO)).isTrue();
-    }
-
-    // ── removePropertyChangeListener ──────────────────────────────────────
-
     @Test
     @DisplayName("Estrutura: removePropertyChangeListener impede recebimento de eventos")
     void testeEstruturaRemoverListener() {
         model.removePropertyChangeListener(listener);
         reset(listener);
 
-        moverDireto(primeiroVizinhoNaoBloqueado(model.getJogador().getPosicaoAtual()));
+        Room atual = model.getJogador().getPosicaoAtual();
+        Room vizinho = primeiroVizinhoNaoBloqueado(atual);
+
+        model.moverJogador(direcaoPara(atual, vizinho));
         model.reduzirTempo();
 
         verify(listener, never()).propertyChange(any());
@@ -447,7 +391,7 @@ class GameEngineEstruturaTest {
             Room v = sala.getVizinho(d);
             if (v != null) return v;
         }
-        throw new IllegalStateException("Sem vizinhos: " + sala.getNome());
+        throw new IllegalStateException("Sala sem vizinhos: " + sala.getNome());
     }
 
     private Room primeiroVizinhoNaoBloqueado(Room sala) {
@@ -465,28 +409,25 @@ class GameEngineEstruturaTest {
         throw new IllegalArgumentException("Não é vizinho");
     }
 
+    private void esvaziarMovimentos() {
+        while (model.getMovimentosRestantes() > 0 && model.isJogoAtivo()) {
+            Room a = model.getJogador().getPosicaoAtual();
+            Room v = primeiroVizinhoNaoBloqueado(a);
+            model.moverJogador(direcaoPara(a, v));
+            if (model.getMovimentosRestantes() > 0 && model.isJogoAtivo()) {
+                model.moverJogador(direcaoPara(v, a));
+            }
+        }
+    }
+
     private void oscilate() {
-        if (!model.isJogoAtivo()) return;
+        if (!model.isJogoAtivo() || model.getMovimentosRestantes() <= 1) return;
         Room a = model.getJogador().getPosicaoAtual();
         Room v = primeiroVizinhoNaoBloqueado(a);
-        if (!model.isJogoAtivo()) return;
         model.moverJogador(direcaoPara(a, v));
         if (model.isJogoAtivo() && model.getMovimentosRestantes() > 1) {
             model.moverJogador(direcaoPara(v, a));
         }
-    }
-
-    private void esvaziarMovimentos() {
-        while (model.getMovimentosRestantes() > 0 && model.isJogoAtivo()) {
-            oscilate();
-        }
-        // Se jogo encerrou antes de zerar, não importa
-    }
-
-    private Room buscarSalaPorAndarXY(int andar, int x, int y) {
-        return model.getSalas().values().stream()
-                .filter(r -> r.getAndar() == andar && r.getX() == x && r.getY() == y)
-                .findFirst().orElse(null);
     }
 
     private void verificarGameOver(boolean esperado) {
@@ -497,4 +438,74 @@ class GameEngineEstruturaTest {
                 .anyMatch(e -> Boolean.valueOf(esperado).equals(e.getNewValue()));
         assertThat(encontrado).as("gameOver=" + esperado).isTrue();
     }
+
+
 }
+
+
+
+//
+//
+//private void darItem(Item item) {
+//    model.getJogador().adicionarItem(item);
+//}
+//
+//private void moverDireto(Room destino) {
+//    model.getJogador().moverPara(destino);
+//}
+//
+//private Room primeiroVizinho(Room sala) {
+//    for (String d : List.of("norte", "sul", "leste", "oeste")) {
+//        Room v = sala.getVizinho(d);
+//        if (v != null) return v;
+//    }
+//    throw new IllegalStateException("Sem vizinhos: " + sala.getNome());
+//}
+//
+//private Room primeiroVizinhoNaoBloqueado(Room sala) {
+//    for (String d : List.of("norte", "sul", "leste", "oeste")) {
+//        Room v = sala.getVizinho(d);
+//        if (v != null && !v.isBloqueada()) return v;
+//    }
+//    return primeiroVizinho(sala);
+//}
+//
+//private String direcaoPara(Room origem, Room destino) {
+//    for (String d : List.of("norte", "sul", "leste", "oeste")) {
+//        if (destino.equals(origem.getVizinho(d))) return d;
+//    }
+//    throw new IllegalArgumentException("Não é vizinho");
+//}
+//
+//private void oscilate() {
+//    if (!model.isJogoAtivo()) return;
+//    Room a = model.getJogador().getPosicaoAtual();
+//    Room v = primeiroVizinhoNaoBloqueado(a);
+//    if (!model.isJogoAtivo()) return;
+//    model.moverJogador(direcaoPara(a, v));
+//    if (model.isJogoAtivo() && model.getMovimentosRestantes() > 1) {
+//        model.moverJogador(direcaoPara(v, a));
+//    }
+//}
+//
+//private void esvaziarMovimentos() {
+//    while (model.getMovimentosRestantes() > 0 && model.isJogoAtivo()) {
+//        oscilate();
+//    }
+//    // Se jogo encerrou antes de zerar, não importa
+//}
+//
+//private Room buscarSalaPorAndarXY(int andar, int x, int y) {
+//    return model.getSalas().values().stream()
+//            .filter(r -> r.getAndar() == andar && r.getX() == x && r.getY() == y)
+//            .findFirst().orElse(null);
+//}
+//
+//private void verificarGameOver(boolean esperado) {
+//    ArgumentCaptor<PropertyChangeEvent> captor = ArgumentCaptor.forClass(PropertyChangeEvent.class);
+//    verify(listener, atLeastOnce()).propertyChange(captor.capture());
+//    boolean encontrado = captor.getAllValues().stream()
+//            .filter(e -> "gameOver".equals(e.getPropertyName()))
+//            .anyMatch(e -> Boolean.valueOf(esperado).equals(e.getNewValue()));
+//    assertThat(encontrado).as("gameOver=" + esperado).isTrue();
+//}

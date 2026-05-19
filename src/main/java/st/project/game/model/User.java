@@ -45,14 +45,18 @@ public class User implements Serializable {
     }
 
     public static String hashPassword(String password) {
+        return hashWithAlgorithm(password, "SHA-256");
+    }
+
+    public static String hashWithAlgorithm(String password, String algorithm) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            MessageDigest md = MessageDigest.getInstance(algorithm);
             byte[] digest = md.digest(password.getBytes(StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
             for (byte b : digest) sb.append(String.format("%02x", b));
             return sb.toString();
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 não disponível", e);
+            throw new RuntimeException(algorithm + " não disponível", e);
         }
     }
 

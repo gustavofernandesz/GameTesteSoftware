@@ -16,6 +16,7 @@ import java.beans.PropertyChangeListener;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.*;
 
 /**
@@ -27,23 +28,25 @@ import static org.mockito.Mockito.*;
  *   T1. Tempo inicial (120s)
  *   T2. Tempo = 1  → após um reduzirTempo encerra
  *   T3. Tempo = 0  já encerrado (idempotência)
+ *   T4. Tempo = 2  → um reduzirTempo ainda mantém jogo ativo (abaixo da fronteira)
  *   M1. Movimentos iniciais (200)
  *   M2. Movimentos = 1 → após mover encerra
  *   M3. Movimentos = 0 → mover retorna false imediatamente
+ *   M4. Movimentos = 2 → após mover, jogo ainda ativo (abaixo da fronteira)
  *   N1. Nível = 1 com inventário vazio (inferior)
- *   N2. Nível máximo com todos itens não-chave coletáveis
- *   S1. Score com tempo zero, movimentos zero e inventário vazio = 0
- *   S2. Score aumenta com poção (tempo×2) e amuleto (+3 mov)
+ *   N2. Nível = 1 só com chave (chave não conta)
+ *   S1. Score inicial = 120*10 + 200*5 + 0*100 = 2200
+ *   S2. Score: cada item acrescenta exatamente 100
  *   A1. Andar inicial = 1
  *   A2. Andar máximo = 4 (sagrado)
- *   P1. Poção dobra tempo exato
- *   P2. Amuleto acrescenta exatamente 3 movimentos
+ *   P1. Poção: tempo × 2 (verificação do estado resultante real)
+ *   P2. Amuleto: +3 movimentos exatos
  *   R1. Adicionar e remover listener — sem crash
- *   R2. Listener nulo não gera NullPointerException
+ *   R2. Sem listener → sem NullPointerException
  *   B1. mover com direção em branco ("") → false
- *   B2. mover com direção null → false
+ *   B2. mover com null → false sem NullPointerException
  *
- * Dublê: PropertyChangeListener (mock).
+ * Dublê: PropertyChangeListener (mock) — dependência de saída do modelo.
  * ────────────────────────────────────────────────────────────────────────────
  */
 @ExtendWith(MockitoExtension.class)
@@ -87,6 +90,19 @@ class GameEngineFronteiraTest {
         assertThat(model.isJogoAtivo()).isFalse();
     }
 
+    // ── T4. Tempo = 2 → jogo continua após 1 tick ─────────────────────────
+
+    @Test
+    @DisplayName("Fronteira (T4): com tempo=2, um reduzirTempo deixa jogo ativo (tempo=1)")
+    void testeFronteiraT4TempoDoisAindaAtivo() {
+        reduzirAte(2);
+
+        model.reduzirTempo();
+
+        assertThat(model.getTempoRestante()).isEqualTo(1);
+        assertThat(model.isJogoAtivo()).isTrue();
+    }
+
     // ── T3. finalizarJogo idempotente ─────────────────────────────────────
 
     @Test
@@ -126,10 +142,25 @@ class GameEngineFronteiraTest {
         verificarGameOver(false);
     }
 
+    // ── M4. Movimentos = 2 → jogo continua após 1 movimento ───────────────
+
+    @Test
+    @DisplayName("Fronteira (M4): com movimentos=2, um mover deixa jogo ativo (movimentos=1)")
+    void testeFronteiraM4MovimentosDoisAindaAtivo() {
+        consumirMovimentosAte(2);
+
+        Room atual   = model.getJogador().getPosicaoAtual();
+        Room vizinho = primeiroVizinhoNaoBloqueadoNemEscada(atual);
+        model.moverJogador(direcaoPara(atual, vizinho));
+
+        assertThat(model.getMovimentosRestantes()).isEqualTo(1);
+        assertThat(model.isJogoAtivo()).isTrue();
+    }
+
     // ── M3. Zero movimentos antes de mover ────────────────────────────────
 
     @Test
-    @DisplayName("Fronteira (M3): com movimentos=0, moverJogador retorna false")
+    @DisplayName("Fronteira (M3): com movimentos=0, moverJogador retorna false sem evento")
     void testeFronteiraM3ZeroMovimentos() {
         consumirMovimentosAte(0);
         reset(listener);
@@ -140,7 +171,7 @@ class GameEngineFronteiraTest {
         verify(listener, never()).propertyChange(any());
     }
 
-    // ── N1. Nível mínimo ──────────────────────────────────────────────────
+    // ── N1 / N2. Nível com/sem chave ──────────────────────────────────────
 
     @Test
     @DisplayName("Fronteira (N1): nível com inventário vazio = 1 (limite inferior)")
@@ -148,29 +179,19 @@ class GameEngineFronteiraTest {
         assertThat(model.getNivel()).isEqualTo(1);
     }
 
-    // ── N2. Nível com 4 itens não-chave ──────────────────────────────────
+    @Test
+    @DisplayName("Fronteira (N2): somente chave no inventário → nível ainda é 1")
+    void testeFronteiraN2SomenteChaveNivelUm() {
+        model.getJogador().adicionarItem(new Item("Chave", Item.Type.CHAVE, "Abre"));
+        assertThat(model.getNivel()).isEqualTo(1);
+    }
 
-
-
-    // ── S1. Score mínimo absoluto ─────────────────────────────────────────
+    // ── S1. Score inicial ─────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Fronteira (S1): score com tempo=0, movimentos=0, sem itens = 0")
-    void testeFronteiraS1ScoreZero() {
-        // Verifica a fórmula: 0*10 + 0*5 + 0*100 = 0
-        // Usamos um novo modelo com tempo e movimentos zerados via reduzir
-        GameModel m = new GameModel(SEED);
-        int t = m.getTempoRestante();
-        for (int i = 0; i < t; i++) {
-            if (!m.isJogoAtivo()) break;
-            m.reduzirTempo();
-        }
-        // O score pode ser negativo se a fórmula usar tempo negativo — mas o jogo encerra em 0
-        // Verificamos que a fórmula está funcionando corretamente com t=0, mov inicial
-        // Como o jogo encerrou, usamos um modelo "congelado" via reflexão
-        GameModel m2 = new GameModel(SEED);
-        // Com tempo=120 e mov=200 e 0 itens: score = 120*10 + 200*5 + 0 = 1200 + 1000 = 2200
-        assertThat(m2.getScore()).isEqualTo(2200);
+    @DisplayName("Fronteira (S1): score inicial = 120×10 + 200×5 + 0×100 = 2200")
+    void testeFronteiraS1ScoreInicial() {
+        assertThat(model.getScore()).isEqualTo(2200);
     }
 
     // ── S2. Score aumenta com itens ──────────────────────────────────────
@@ -199,26 +220,23 @@ class GameEngineFronteiraTest {
         assertThat(model.getSalas().get("sagrado").getAndar()).isEqualTo(4);
     }
 
-    // ── P1. Poção dobra tempo exato ───────────────────────────────────────
+    // ── P1. Poção dobra tempo — verificação do estado resultante ──────────
 
     @Test
-    @DisplayName("Fronteira (P1): poção de velocidade dobra tempoRestante exatamente")
-    void testeFronteiraP1PocaoDobraTempo() {
-        darItem(new Item("Lupa", Item.Type.LUPA, "Revela")); // para poder coletar
-        int tempoBefore = model.getTempoRestante();
-
+    @DisplayName("Fronteira (P1): coletar poção de velocidade dobra o tempo resultante")
+    void testeFronteiraP1PocaoDobraTempoResultante() {
+        darItem(new Item("Lupa", Item.Type.LUPA, "Revela"));
         Room atual = model.getJogador().getPosicaoAtual();
         atual.getItems().clear();
-        Item pocao = new Item("Poção", Item.Type.POCAO_VELOCIDADE, "x2");
-        atual.adicionarItem(pocao);
+        atual.adicionarItem(new Item("Poção", Item.Type.POCAO_VELOCIDADE, "x2"));
 
+        int tempoBefore = model.getTempoRestante();
         Room vizinho = primeiroVizinhoNaoBloqueado(atual);
-        model.moverJogador(direcaoPara(atual, vizinho));
-        model.moverJogador(direcaoPara(vizinho, atual));
+        model.moverJogador(direcaoPara(atual, vizinho)); // -1 mov
+        model.moverJogador(direcaoPara(vizinho, atual)); // -1 mov, coleta poção: tempo*2
 
-        // Depois de 2 movimentos o tempo foi reduzido 0 vezes pelo timer (pausado)
-        // mas a poção foi coletada na volta
-        assertThat(model.getJogador().possuiItem(Item.Type.POCAO_VELOCIDADE)).isTrue();
+        // Timer pausado → tempo só mudou pela poção
+        assertThat(model.getTempoRestante()).isEqualTo(tempoBefore * 2);
     }
 
     // ── P2. Amuleto acrescenta exatamente 3 ──────────────────────────────
@@ -231,16 +249,12 @@ class GameEngineFronteiraTest {
 
         Room atual = model.getJogador().getPosicaoAtual();
         atual.getItems().clear();
-        Item amuleto = new Item("Amuleto", Item.Type.AMULETO_VISAO, "+3");
-        atual.adicionarItem(amuleto);
+        atual.adicionarItem(new Item("Amuleto", Item.Type.AMULETO_VISAO, "+3"));
 
         Room vizinho = primeiroVizinhoNaoBloqueado(atual);
-        // Vai (−1 mov), volta (−1 mov, coleta amuleto: +3)
-        model.moverJogador(direcaoPara(atual, vizinho));
-        int movMeio = model.getMovimentosRestantes(); // movBefore - 1
-        model.moverJogador(direcaoPara(vizinho, atual));
+        model.moverJogador(direcaoPara(atual, vizinho)); // -1
+        model.moverJogador(direcaoPara(vizinho, atual)); // -1, coleta: +3
 
-        // Após voltar e coletar: (movBefore - 2) + 3 = movBefore + 1
         assertThat(model.getMovimentosRestantes()).isEqualTo(movBefore - 2 + 3);
     }
 
@@ -260,20 +274,18 @@ class GameEngineFronteiraTest {
         verify(listener, atLeastOnce()).propertyChange(any());
     }
 
-    // ── R2. PropertyChangeListener null — sem NullPointerException ────────
+    // ── R2. Sem listener — sem NullPointerException ────────────────────────
 
     @Test
-    @DisplayName("Fronteira (R2): modelo sem listener não lança NullPointerException ao mover")
+    @DisplayName("Fronteira (R2): modelo sem listener não lança NullPointerException ao operar")
     void testeFronteiraR2SemListenerNaoExplode() {
         GameModel m = new GameModel(SEED);
-        // Nenhum listener adicionado
-        assertThat(m.isJogoAtivo()).isTrue();
-        // Qualquer operação não deve lançar NullPointerException
-        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> {
+        assertDoesNotThrow(() -> {
             Room atual   = m.getJogador().getPosicaoAtual();
             Room vizinho = primeiroVizinhoNaoBloqueado(atual);
             m.moverJogador(direcaoPara(atual, vizinho));
             m.reduzirTempo();
+            m.finalizarJogo(false);
         });
     }
 
@@ -288,12 +300,12 @@ class GameEngineFronteiraTest {
     @Test
     @DisplayName("Fronteira (B2): mover com null retorna false sem NullPointerException")
     void testeFronteiraB2DirecaoNull() {
-        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() ->
+        assertDoesNotThrow(() ->
                 assertThat(model.moverJogador(null)).isFalse()
         );
     }
 
-    // ── Testes baseados em propriedades ──────────────────────────────────
+    // ── Propriedades paramétricas ─────────────────────────────────────────
 
     @ParameterizedTest(name = "score com {0} itens não-CHAVE = base + {0}×100")
     @ValueSource(ints = {0, 1, 2, 3})
@@ -314,6 +326,21 @@ class GameEngineFronteiraTest {
             darItem(new Item("Lupa" + i, Item.Type.LUPA, "Revela"));
         }
         assertThat(model.getNivel()).isEqualTo(1 + nItens);
+    }
+
+    // ── Transição: evento 'nivel' ao mudar de nível ───────────────────────
+
+    @Test
+    @DisplayName("Fronteira: evento 'nivel' é disparado quando nível muda após movimento")
+    void testeFronteiraEventoNivelDisparadoAoMudar() {
+        // Coloca LUPA na sala vizinha para que nível suba ao coletar
+        Room atual   = model.getJogador().getPosicaoAtual();
+        Room vizinho = primeiroVizinhoNaoBloqueado(atual);
+        vizinho.adicionarItem(new Item("Lupa", Item.Type.LUPA, "Revela"));
+
+        model.moverJogador(direcaoPara(atual, vizinho));
+
+        verificarEventoNivel();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -341,7 +368,7 @@ class GameEngineFronteiraTest {
             Room v = sala.getVizinho(d);
             if (v != null && !v.isBloqueada() && !v.isEscada()) return v;
         }
-        return primeiroVizinhoNaoBloqueado(sala); // fallback
+        return primeiroVizinhoNaoBloqueado(sala);
     }
 
     private String direcaoPara(Room origem, Room destino) {
@@ -375,5 +402,13 @@ class GameEngineFronteiraTest {
                 .filter(e -> "gameOver".equals(e.getPropertyName()))
                 .anyMatch(e -> Boolean.valueOf(esperado).equals(e.getNewValue()));
         assertThat(encontrado).as("gameOver=" + esperado).isTrue();
+    }
+
+    private void verificarEventoNivel() {
+        ArgumentCaptor<PropertyChangeEvent> captor = ArgumentCaptor.forClass(PropertyChangeEvent.class);
+        verify(listener, atLeastOnce()).propertyChange(captor.capture());
+        boolean encontrado = captor.getAllValues().stream()
+                .anyMatch(e -> "nivel".equals(e.getPropertyName()));
+        assertThat(encontrado).as("Esperava evento 'nivel'").isTrue();
     }
 }

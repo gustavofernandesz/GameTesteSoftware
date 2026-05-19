@@ -58,7 +58,7 @@ class MissionDominioTest {
     @DisplayName("Domínio: missão com outros itens mas sem cálice permanece não concluída")
     void testeDominioMissaoNaoConcluidaComOutrosItens() {
         Player jogador = new Player(salaDoCalice);
-        jogador.adicionarItem(new Item("Lupa", Item.Type.LUPA, "Revela itens"));
+        jogador.adicionarItem(new Item("Lupa",  Item.Type.LUPA,  "Revela itens"));
         jogador.adicionarItem(new Item("Chave", Item.Type.CHAVE, "Abre"));
 
         missao.verificarProgresso(jogador);
@@ -93,7 +93,7 @@ class MissionDominioTest {
         assertThat(missao.getSalaCalice()).isEqualTo(salaDoCalice);
     }
 
-    // ── Verificação múltipla ───────────────────────────────────────────────
+    // ── Idempotência e persistência do estado ──────────────────────────────
 
     @Test
     @DisplayName("Domínio: verificarProgresso pode ser chamado múltiplas vezes sem mudar estado")
@@ -106,5 +106,27 @@ class MissionDominioTest {
 
         assertThat(missao.isMissaoConcluida()).isTrue();
         assertThat(missao.isCaliceColetado()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Domínio: missão permanece concluída mesmo após remoção do cálice do inventário")
+    void testeDominioMissaoPermaneceConcluidaAposRemocao() {
+        Player jogador = new Player(salaDoCalice);
+        Item calice = new Item("Cálice Mágico", Item.Type.CALICE, "O objeto da missão");
+        jogador.adicionarItem(calice);
+
+        missao.verificarProgresso(jogador); // conclui
+        jogador.removerItem(calice);        // remove do inventário
+        missao.verificarProgresso(jogador); // reavalia sem cálice
+
+        // Estado persiste — missão continua concluída
+        assertThat(missao.isMissaoConcluida()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Domínio: missão inicia com caliceColetado e missaoConcluida ambos false")
+    void testeDominioEstadoInicialFalse() {
+        assertThat(missao.isCaliceColetado()).isFalse();
+        assertThat(missao.isMissaoConcluida()).isFalse();
     }
 }

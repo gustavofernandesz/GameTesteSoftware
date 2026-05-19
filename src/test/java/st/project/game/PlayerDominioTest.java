@@ -7,22 +7,19 @@ import st.project.game.model.Item;
 import st.project.game.model.Player;
 import st.project.game.model.Room;
 
-import java.util.List;
-import java.util.Stack;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ─── TESTES DE DOMÍNIO: Player ──────────────────────────────────────────────
  *
- * Escopo: valida as regras de negócio — movimentação, inventário e histórico.
+ * Escopo: regras de negócio — movimentação, inventário, histórico e uso de itens.
  * Dublê de teste: nenhum — Player é classe de estado pura.
  * ────────────────────────────────────────────────────────────────────────────
  */
 @DisplayName("Player – Testes de Domínio")
 class PlayerDominioTest {
 
-    private Room salaInicial;
+    private Room   salaInicial;
     private Player player;
 
     @BeforeEach
@@ -55,11 +52,27 @@ class PlayerDominioTest {
     }
 
     @Test
+    @DisplayName("Domínio: moverPara sala bloqueada sem chave retorna false")
+    void testeDominioMoverParaBloqueadaSemChaveRetornaFalse() {
+        Room bloqueada = new Room("Sagrado", 4, 4);
+        bloqueada.setBloqueada(true);
+        assertThat(player.moverPara(bloqueada)).isFalse();
+        assertThat(player.getPosicaoAtual()).isEqualTo(salaInicial); // não moveu
+    }
+
+    @Test
     @DisplayName("Domínio: moverPara atualiza o histórico de salas")
     void testeDominioHistoricoAtualizado() {
         Room destino = new Room("Segunda Sala", 0, 1);
         player.moverPara(destino);
         assertThat(player.getHistorico()).contains(destino);
+    }
+
+    @Test
+    @DisplayName("Domínio: histórico começa com apenas a sala inicial")
+    void testeDominioHistoricoInicial() {
+        assertThat(player.getHistorico()).hasSize(1);
+        assertThat(player.getHistorico().peek()).isEqualTo(salaInicial);
     }
 
     @Test
@@ -87,11 +100,26 @@ class PlayerDominioTest {
     }
 
     @Test
-    @DisplayName("Domínio: usarItem consumível remove o item do inventário")
+    @DisplayName("Domínio: possuiItem retorna false para tipo ausente")
+    void testeDominioPossuiItemAusente() {
+        assertThat(player.possuiItem(Item.Type.CHAVE)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Domínio: usarItem consumível (POCAO) remove o item do inventário")
     void testeDominioUsarItemConsumivel() {
         Item pocao = new Item("Poção", Item.Type.POCAO_VELOCIDADE, "x2");
         player.adicionarItem(pocao);
         player.usarItem(pocao);
+        assertThat(player.getInventario()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Domínio: usarItem consumível (AMULETO) remove o item do inventário")
+    void testeDominioUsarItemAmuletoConsumivel() {
+        Item amuleto = new Item("Amuleto", Item.Type.AMULETO_VISAO, "+3");
+        player.adicionarItem(amuleto);
+        player.usarItem(amuleto);
         assertThat(player.getInventario()).isEmpty();
     }
 
@@ -104,6 +132,27 @@ class PlayerDominioTest {
         assertThat(player.getInventario()).contains(chave);
     }
 
+    @Test
+    @DisplayName("Domínio: usarItem LUPA mantém no inventário (não consumível)")
+    void testeDominioUsarItemLupaNaoConsumivel() {
+        Item lupa = new Item("Lupa", Item.Type.LUPA, "Revela");
+        player.adicionarItem(lupa);
+        player.usarItem(lupa);
+        assertThat(player.getInventario()).contains(lupa);
+    }
 
+    @Test
+    @DisplayName("Domínio: usarItem CALICE mantém no inventário (não consumível)")
+    void testeDominioUsarItemCaliceNaoConsumivel() {
+        Item calice = new Item("Cálice", Item.Type.CALICE, "Missão");
+        player.adicionarItem(calice);
+        player.usarItem(calice);
+        assertThat(player.getInventario()).contains(calice);
+    }
 
+    @Test
+    @DisplayName("Domínio: inventário começa vazio")
+    void testeDominioInventarioVazioInicial() {
+        assertThat(player.getInventario()).isEmpty();
+    }
 }

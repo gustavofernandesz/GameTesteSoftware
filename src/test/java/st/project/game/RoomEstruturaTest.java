@@ -94,7 +94,6 @@ class RoomEstruturaTest {
         assertThat(room.contemItem(Item.Type.CHAVE)).isFalse();
     }
 
-    // ── (G)(H) isAlcapao por convenção de nome ─────────────────────────────
 
 
 

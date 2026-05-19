@@ -6,16 +6,13 @@ import org.junit.jupiter.api.Test;
 import st.project.game.model.Item;
 import st.project.game.model.Room;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ─── TESTES DE DOMÍNIO: Room ────────────────────────────────────────────────
  *
  * Escopo: valida as regras de negócio da sala — estado inicial, bloqueio,
- * vizinhança, manipulação de itens e detecção de alçapão.
+ * vizinhança, manipulação de itens e identificação de escadas.
  *
  * Dublê de teste: nenhum — Room é uma classe de estado pura.
  * ────────────────────────────────────────────────────────────────────────────
@@ -50,6 +47,19 @@ class RoomDominioTest {
         assertThat(room.getY()).isEqualTo(0);
     }
 
+    @Test
+    @DisplayName("Domínio: getAndar retorna o andar correto (construtor 4-param)")
+    void testeDominioGetAndar() {
+        Room r = new Room("x", 1, 2, 3);
+        assertThat(r.getAndar()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("Domínio: construtor 3-param usa andar 1 por padrão")
+    void testeDominioAndarPadraoUm() {
+        assertThat(room.getAndar()).isEqualTo(1);
+    }
+
     // ── Bloqueio ───────────────────────────────────────────────────────────
 
     @Test
@@ -65,8 +75,33 @@ class RoomDominioTest {
         assertThat(room.isBloqueada()).isTrue();
     }
 
-    // ── Alçapão (NOVO) ─────────────────────────────────────────────────────
+    // ── Escadas ────────────────────────────────────────────────────────────
 
+    @Test
+    @DisplayName("Domínio: sala com nome 'escada_cima_1' é identificada como escada cima")
+    void testeDominioIsEscadaCima() {
+        Room escada = new Room("escada_cima_1", 4, 0, 1);
+        assertThat(escada.isEscadaCima()).isTrue();
+        assertThat(escada.isEscadaBaixo()).isFalse();
+        assertThat(escada.isEscada()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Domínio: sala com nome 'escada_baixo_2' é identificada como escada baixo")
+    void testeDominioIsEscadaBaixo() {
+        Room escada = new Room("escada_baixo_2", 0, 4, 2);
+        assertThat(escada.isEscadaBaixo()).isTrue();
+        assertThat(escada.isEscadaCima()).isFalse();
+        assertThat(escada.isEscada()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Domínio: sala comum não é identificada como escada")
+    void testeDominioSalaComumNaoEscada() {
+        assertThat(room.isEscada()).isFalse();
+        assertThat(room.isEscadaCima()).isFalse();
+        assertThat(room.isEscadaBaixo()).isFalse();
+    }
 
     // ── Vizinhança ─────────────────────────────────────────────────────────
 
@@ -76,6 +111,12 @@ class RoomDominioTest {
         Room vizinha = new Room("Sala Vizinha", 0, 1);
         room.setVizinho("leste", vizinha);
         assertThat(room.getVizinho("leste")).isEqualTo(vizinha);
+    }
+
+    @Test
+    @DisplayName("Domínio: getVizinho para direção sem vizinho retorna null")
+    void testeDominioVizinhoAusenteNull() {
+        assertThat(room.getVizinho("norte")).isNull();
     }
 
     // ── Itens ──────────────────────────────────────────────────────────────
@@ -106,6 +147,12 @@ class RoomDominioTest {
     }
 
     @Test
+    @DisplayName("Domínio: contemItem retorna false para tipo ausente")
+    void testeDominioContemItemAusente() {
+        assertThat(room.contemItem(Item.Type.CHAVE)).isFalse();
+    }
+
+    @Test
     @DisplayName("Domínio: getItemPorTipo retorna o item correto")
     void testeDominioGetItemPorTipo() {
         Item chave = new Item("Chave", Item.Type.CHAVE, "Abre");
@@ -113,5 +160,15 @@ class RoomDominioTest {
         assertThat(room.getItemPorTipo(Item.Type.CHAVE)).isEqualTo(chave);
     }
 
+    @Test
+    @DisplayName("Domínio: getItemPorTipo retorna null para tipo ausente")
+    void testeDominioGetItemPorTipoAusente() {
+        assertThat(room.getItemPorTipo(Item.Type.CALICE)).isNull();
+    }
 
+    @Test
+    @DisplayName("Domínio: sala começa sem itens")
+    void testeDominioSalaSemItensInicial() {
+        assertThat(room.getItems()).isEmpty();
+    }
 }
