@@ -341,7 +341,7 @@ public class GameModel implements Serializable {
         Room salaAmuleto = getRoomPorAndarXY(2, 3, 2);
         if (salaAmuleto != null) {
             salaAmuleto.adicionarItem(new Item("Amuleto de Movimentos", Item.Type.AMULETO_VISAO,
-                    "Aumenta seus movimentos em 3"));
+                    "Aumenta seus movimentos em 100"));
         }
 
         // Cálice — andar 4, dentro de "sagrado" (bloqueada)
