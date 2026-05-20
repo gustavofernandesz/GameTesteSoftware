@@ -1,4 +1,4 @@
-package st.project.game;
+package st.project.game.Model;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -7,7 +7,6 @@ import st.project.game.model.Item;
 import st.project.game.model.Player;
 import st.project.game.model.Room;
 
-import java.util.List;
 import java.util.Stack;
 
 import static org.assertj.core.api.Assertions.assertThat;

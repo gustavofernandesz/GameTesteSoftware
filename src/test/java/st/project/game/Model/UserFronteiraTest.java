@@ -1,4 +1,4 @@
-package st.project.game;
+package st.project.game.Model;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

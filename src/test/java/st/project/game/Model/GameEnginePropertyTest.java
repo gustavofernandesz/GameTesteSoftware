@@ -1,4 +1,4 @@
-package st.project.game;
+package st.project.game.Model;
 
 import net.jqwik.api.*;
 import st.project.game.model.GameModel;

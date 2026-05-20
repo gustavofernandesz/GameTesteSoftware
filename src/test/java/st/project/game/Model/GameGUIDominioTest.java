@@ -1,4 +1,4 @@
-package st.project.game;
+package st.project.game.Model;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -17,12 +17,9 @@ import st.project.game.view.GameGUI;
 import javax.swing.*;
 import java.beans.PropertyChangeEvent;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**

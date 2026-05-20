@@ -1,4 +1,4 @@
-package st.project.game;
+package st.project.game.Model;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
