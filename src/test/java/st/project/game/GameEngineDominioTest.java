@@ -11,9 +11,14 @@ import st.project.game.model.*;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.*;
 
 /**
@@ -445,6 +450,113 @@ class GameEngineDominioTest {
         assertThat(engine.isJogoEncerrado()).isTrue();
     }
 
+    // ── Testes para serialização ───────────────────────────────
+
+    @Test
+    @DisplayName("Serialização: modelo restaurado tem o mesmo número de salas")
+    void testeSerializacaoSalasPreservadas() throws Exception {
+        GameModel original   = new GameModel(SEED);
+        GameModel restaurado = serializar(original);
+
+        assertThat(restaurado.getSalas()).hasSize(100);
+    }
+
+    @Test
+    @DisplayName("Serialização: modelo restaurado preserva movimentosRestantes")
+    void testeSerializacaoMovimentosPreservados() throws Exception {
+        GameModel original = new GameModel(SEED);
+        original.moverJogador("leste");
+        int esperado = original.getMovimentosRestantes();
+
+        GameModel restaurado = serializar(original);
+
+        assertThat(restaurado.getMovimentosRestantes()).isEqualTo(esperado);
+    }
+
+    @Test
+    @DisplayName("Serialização: modelo restaurado preserva tempoRestante")
+    void testeSerializacaoTempoPreservado() throws Exception {
+        GameModel original = new GameModel(SEED);
+        original.reduzirTempo();
+        int esperado = original.getTempoRestante();
+
+        GameModel restaurado = serializar(original);
+
+        assertThat(restaurado.getTempoRestante()).isEqualTo(esperado);
+    }
+
+    @Test
+    @DisplayName("Serialização: modelo restaurado preserva isJogoAtivo")
+    void testeSerializacaoJogoAtivoPreservado() throws Exception {
+        GameModel original = new GameModel(SEED);
+        original.finalizarJogo(false);
+
+        GameModel restaurado = serializar(original);
+
+        assertThat(restaurado.isJogoAtivo()).isFalse();
+    }
+
+    // ── Campos transient recriados (readObject) ────────────────────────────
+
+    @Test
+    @DisplayName("Serialização: pcs recriado — moverJogador não lança NullPointerException")
+    void testeSerializacaoPcsRecriado() throws Exception {
+        // Arrange
+        GameModel restaurado = serializar(new GameModel(SEED));
+
+        // Act / Assert — se pcs fosse null, firePropertyChange lançaria NPE
+        assertDoesNotThrow(() -> restaurado.moverJogador("leste"));
+    }
+
+    @Test
+    @DisplayName("Serialização: pcs recriado — reduzirTempo não lança NullPointerException")
+    void testeSerializacaoPcsRecriadoReduzirTempo() throws Exception {
+        GameModel restaurado = serializar(new GameModel(SEED));
+
+        assertDoesNotThrow(() -> restaurado.reduzirTempo());
+    }
+
+    @Test
+    @DisplayName("Serialização: pcs recriado — listener adicionado após restauração recebe eventos")
+    void testeSerializacaoPcsAceitaListenerAposRestauracao() throws Exception {
+        // Arrange
+        GameModel restaurado = serializar(new GameModel(SEED));
+        java.beans.PropertyChangeListener listener =
+                org.mockito.Mockito.mock(java.beans.PropertyChangeListener.class);
+
+        // Act
+        restaurado.addPropertyChangeListener(listener);
+        restaurado.reduzirTempo();
+
+        // Assert — pcs foi recriado vazio mas funcional
+        org.mockito.Mockito.verify(listener, org.mockito.Mockito.atLeastOnce())
+                .propertyChange(org.mockito.Mockito.any());
+    }
+
+    @Test
+    @DisplayName("Serialização: random recriado — mapa permanece determinístico pela seed")
+    void testeSerializacaoRandomRecriadoMapaDeterministico() throws Exception {
+        // Ambos partem da mesma seed → salas nas mesmas posições
+        GameModel m1 = serializar(new GameModel(SEED));
+        GameModel m2 = new GameModel(SEED);
+
+        m1.getSalas().forEach((nome, sala) -> {
+            assertThat(sala.getX()).isEqualTo(m2.getSalas().get(nome).getX());
+            assertThat(sala.getY()).isEqualTo(m2.getSalas().get(nome).getY());
+            assertThat(sala.getAndar()).isEqualTo(m2.getSalas().get(nome).getAndar());
+        });
+    }
+
+    @Test
+    @DisplayName("Domínio: construtor padrão cria modelo com estado inicial válido")
+    void testeDominioConstrutorPadrao() {
+        GameModel m = new GameModel();
+        assertThat(m.isJogoAtivo()).isTrue();
+        assertThat(m.getSalas()).hasSize(100);
+        assertThat(m.getMovimentosRestantes()).isEqualTo(200);
+        assertThat(m.getTempoRestante()).isEqualTo(120);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  Utilitários
     // ═══════════════════════════════════════════════════════════════════════
@@ -515,5 +627,16 @@ class GameEngineDominioTest {
         assertThat(encontrado)
                 .as("Esperava evento 'gameOver' com valor " + esperado)
                 .isTrue();
+    }
+
+    private GameModel serializar(GameModel original) throws Exception {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(original);
+        }
+        try (ObjectInputStream ois = new ObjectInputStream(
+                new ByteArrayInputStream(baos.toByteArray()))) {
+            return (GameModel) ois.readObject();
+        }
     }
 }
