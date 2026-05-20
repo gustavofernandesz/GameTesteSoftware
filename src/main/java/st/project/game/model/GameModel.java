@@ -38,7 +38,11 @@ public class GameModel implements Serializable {
         this.pcs = new PropertyChangeSupport(this);
         jogoAtivo = true;
         inicializarMapa(random);
+        // Invariante (P1): mapa possui 100 salas; toda sala tem X/Y em 0–4, andar em 1–4 e vizinhos cardinais corretos
+
         inicializarItens();
+        // Invariante (P5): LUPA, CHAVE e CALICE foram inseridos exatamente uma vez no mapa
+        // Pré-condição (P8): "entrada" está no andar 1 — jogador sempre nasce no andar 1
         this.jogador = new Player(salas.get("entrada"));
         this.missao = new Mission(salas.get("sagrado"));
         this.tempoRestante = 120;
@@ -65,11 +69,12 @@ public class GameModel implements Serializable {
     public int getAndarAtual()                      { return jogador.getPosicaoAtual().getAndar(); }
     public boolean isChaveVisivel()                 { return jogador.possuiItem(Item.Type.LUPA); }
     public Room getSalaDaChave()                    { return salaDaChave; }
-
+    // Invariante (P6): resultado ≥ 0 enquanto jogo ativo (tempoRestante, movimentosRestantes e tamanho do inventário são não-negativos)
     public int getScore() {
         return tempoRestante * 10 + movimentosRestantes * 5 + jogador.getInventario().size() * 100;
     }
 
+    // Invariante (P7): resultado sempre ≥ 1 (base fixa de 1 somada a contagem não-negativa)
     public int getNivel() {
         return 1 + (int) jogador.getInventario().stream()
                 .filter(i -> i.getTipo() != Item.Type.CHAVE)
@@ -77,10 +82,13 @@ public class GameModel implements Serializable {
     }
 
     public boolean moverJogador(String direcao) {
+        // Pré-condição (P3): jogoAtivo == true e movimentosRestantes > 0; caso contrário nenhum estado é alterado
         if (!jogoAtivo || movimentosRestantes <= 0) return false;
 
         Room atual = jogador.getPosicaoAtual();
         Room destino = atual.getVizinho(direcao);
+
+        // Pós-condição (P3): direção sem vizinho — retorna false, posição e contador de movimentos preservados
         if (destino == null) return false;
 
         int oldScore = getScore();
@@ -153,6 +161,7 @@ public class GameModel implements Serializable {
                 pcs.firePropertyChange("andar", oldAndar, novoAndar);
             }
         }
+        // Invariante (P2/P8): após qualquer movimento válido, posição do jogador tem X/Y em 0–4 e andar em 1–4
         return moveu;
     }
 
