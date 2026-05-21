@@ -1,12 +1,8 @@
-package st.project.game.Model;
+package st.project.game.model;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import st.project.game.model.Item;
-import st.project.game.model.Player;
-import st.project.game.model.Room;
-import st.project.game.model.User;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

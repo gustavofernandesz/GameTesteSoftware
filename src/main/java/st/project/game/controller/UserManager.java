@@ -26,6 +26,7 @@ public class UserManager {
             } catch (Exception e) {
                 users = new ArrayList<>();
                 users.add(new User("admin", "admin", "admin_avatar.png"));
+                saveUsers();
             }
         }
     }
