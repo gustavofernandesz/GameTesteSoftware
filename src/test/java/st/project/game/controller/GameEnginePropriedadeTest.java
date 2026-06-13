@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Dublê de teste: nenhum.
  * ────────────────────────────────────────────────────────────────────────────
  */
-class GameEnginePropertyTest {
+class GameEnginePropriedadeTest {
 
     // ── P1. Mapa: 100 salas, coordenadas e vizinhança ─────────────────────
 
