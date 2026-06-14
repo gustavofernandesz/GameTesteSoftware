@@ -76,6 +76,13 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-swing</artifactId>
+            <version>3.17.1</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -93,11 +100,17 @@
                 </configuration>
             </plugin>
 
-            <!-- Surefire -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>${maven.surefire.version}</version>
+                <version>3.5.3</version>
+                <configuration>
+                    <argLine>
+                        @{argLine}
+                        --add-opens=java.base/java.util=ALL-UNNAMED
+                        -Djava.awt.headless=false
+                    </argLine>
+                </configuration>
             </plugin>
 
             <!-- JaCoCo -->
@@ -182,6 +195,8 @@
                 </configuration>
 
             </plugin>
+
+
 
         </plugins>
     </build>
