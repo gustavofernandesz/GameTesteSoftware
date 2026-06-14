@@ -30,6 +30,7 @@ import java.util.Set;
 @TestMethodOrder(MethodOrderer.DisplayName.class)
 class GameSystemTest {
 
+    private org.assertj.swing.core.Robot robot;
     private FrameFixture loginWindow;
     private FrameFixture menuWindow;
     private FrameFixture gameWindow;
@@ -41,28 +42,20 @@ class GameSystemTest {
 
     @BeforeEach
     void abrirLoginScreen() {
-
+        robot = org.assertj.swing.core.BasicRobot.robotWithNewAwtHierarchy();
         LoginScreen frame = GuiActionRunner.execute(
                 (java.util.concurrent.Callable<LoginScreen>) LoginScreen::new);
-        loginWindow = new FrameFixture(frame);
+        loginWindow = new FrameFixture(robot, frame);
         loginWindow.show();
     }
 
     @AfterEach
     void fecharTodasAsJanelas() {
-        if (gameWindow != null) {
-            try { gameWindow.cleanUp(); } catch (Exception ignored) {}
-            gameWindow = null;
-        }
-
-        if (menuWindow != null) {
-            try { menuWindow.cleanUp(); } catch (Exception ignored) {}
-            menuWindow = null;
-        }
-
-        if (loginWindow != null) {
-            try { loginWindow.cleanUp(); } catch (Exception ignored) {}
-            loginWindow = null;
+        if (robot != null) {
+            try {
+                robot.cleanUp();
+            } catch (Exception ignored) {}
+            robot = null;
         }
 
         for (Frame f : Frame.getFrames()) {
@@ -134,8 +127,8 @@ class GameSystemTest {
         new LoginScreenObject(loginWindow).clicarCadastrar();
 
         JOptionPaneFixture opcao = loginWindow.optionPane(timeout(3000));
-        textBoxNoOptPane(opcao, 0).enterText(novoUsuario); // loginF
-        textBoxNoOptPane(opcao, 1).enterText("Senha@123"); // passF
+        textBoxNoOptPane(opcao, 0).enterText(novoUsuario);
+        textBoxNoOptPane(opcao, 1).enterText("Senha@123");
         opcao.okButton().click();
 
         loginWindow.optionPane(timeout(3000))
@@ -155,7 +148,7 @@ class GameSystemTest {
         new LoginScreenObject(loginWindow).clicarCadastrar();
 
         JOptionPaneFixture opcao = loginWindow.optionPane(timeout(3000));
-        textBoxNoOptPane(opcao, 1).enterText("SenhaQualquer"); // loginF vazio
+        textBoxNoOptPane(opcao, 1).enterText("SenhaQualquer");
         opcao.okButton().click();
 
         loginWindow.optionPane(timeout(3000))
@@ -172,7 +165,6 @@ class GameSystemTest {
     void j4b_cadastroDuplicadoExibeErro() {
         String nome = "dup_" + UUID.randomUUID().toString().substring(0, 8);
 
-        // Primeira vez: cria
         new LoginScreenObject(loginWindow).clicarCadastrar();
         JOptionPaneFixture opcao1 = loginWindow.optionPane(timeout(3000));
         textBoxNoOptPane(opcao1, 0).enterText(nome);
@@ -180,7 +172,6 @@ class GameSystemTest {
         opcao1.okButton().click();
         loginWindow.optionPane(timeout(3000)).okButton().click();
 
-        // Segunda vez: duplicata
         new LoginScreenObject(loginWindow).clicarCadastrar();
         JOptionPaneFixture opcao2 = loginWindow.optionPane(timeout(3000));
         textBoxNoOptPane(opcao2, 0).enterText(nome);
@@ -193,16 +184,28 @@ class GameSystemTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // J5. Login válido → MainMenu abre
+    // J5. Login válido → MainMenu abre (FLUÊNCIA CONQUISTADA AQUI!)
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
     @DisplayName("J5: login válido abre MainMenu com botões Novo Jogo, Ranking e Sair")
     void j5_loginValidoAbreMenuPrincipal() {
-        criarELogar();
+        // 1. Preparamos o cadastro de um usuário de teste
+        String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
+        cadastrarUsuarioAuxiliar(usuario, "Pass1234");
 
-        new MainMenuScreenObject(menuWindow)
-                .verificarMenuPrincipalAberto()
+        // Mapeia o snapshot das janelas antes do clique definitivo de login
+        Set<Frame> antes = new HashSet<>(Arrays.asList(Frame.getFrames()));
+
+        // 2. Executa a jornada de forma 100% contínua e elegante!
+        LoginScreenObject login = new LoginScreenObject(loginWindow);
+
+        MainMenuScreenObject menu = login
+                .preencherLogin(usuario)
+                .preencherSenha("Pass1234")
+                .clicarEntrarComSucesso(antes); // Método fluente mapeado!
+
+        menu.verificarMenuPrincipalAberto()
                 .verificarBotaoNovoJogoVisivel()
                 .verificarBotaoRankingVisivel()
                 .verificarBotaoSairVisivel();
@@ -215,9 +218,16 @@ class GameSystemTest {
     @Test
     @DisplayName("J6: novo jogo abre GameGUI com score, tempo, movimentos, nível, andar e log")
     void j6_iniciarNovoJogoExibeGameGUI() {
-        criarELogar();
-        new MainMenuScreenObject(menuWindow).clicarNovoJogo();
+        String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
+        cadastrarUsuarioAuxiliar(usuario, "Pass1234");
+        Set<Frame> antes = new HashSet<>(Arrays.asList(Frame.getFrames()));
 
+        MainMenuScreenObject menu = new LoginScreenObject(loginWindow)
+                .preencherLogin(usuario)
+                .preencherSenha("Pass1234")
+                .clicarEntrarComSucesso(antes);
+
+        menu.clicarNovoJogo();
         gameWindow = aguardarJanelaPorTitulo("Aventura Mágica", 4000);
 
         GameScreenObject game = new GameScreenObject(gameWindow);
@@ -239,8 +249,16 @@ class GameSystemTest {
     @Test
     @DisplayName("J7: pressionar D (leste) diminui movimentos restantes e popula log")
     void j7_movimentoValidoAlteraMovimentosELog() {
-        criarELogar();
-        new MainMenuScreenObject(menuWindow).clicarNovoJogo();
+        String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
+        cadastrarUsuarioAuxiliar(usuario, "Pass1234");
+        Set<Frame> antes = new HashSet<>(Arrays.asList(Frame.getFrames()));
+
+        new LoginScreenObject(loginWindow)
+                .preencherLogin(usuario)
+                .preencherSenha("Pass1234")
+                .clicarEntrarComSucesso(antes)
+                .clicarNovoJogo();
+
         gameWindow = aguardarJanelaPorTitulo("Aventura Mágica", 4000);
 
         GameScreenObject game = new GameScreenObject(gameWindow);
@@ -250,12 +268,8 @@ class GameSystemTest {
         game.moverLeste();
         Pause.pause(500, TimeUnit.MILLISECONDS);
 
-        assertThat(game.textoMovimentos())
-                .as("Movimentos devem ter diminuído após movimento válido")
-                .isNotEqualTo(movAntes);
-        assertThat(game.textoLog())
-                .as("Log deve ter sido populado após o movimento")
-                .isNotEqualTo(logAntes);
+        assertThat(game.textoMovimentos()).isNotEqualTo(movAntes);
+        assertThat(game.textoLog()).isNotEqualTo(logAntes);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -265,8 +279,16 @@ class GameSystemTest {
     @Test
     @DisplayName("J8: W (norte) na entrada loga 'Bloqueado' e não consome movimento")
     void j8_movimentoBloqueadoLogaMensagemEJogoContinua() {
-        criarELogar();
-        new MainMenuScreenObject(menuWindow).clicarNovoJogo();
+        String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
+        cadastrarUsuarioAuxiliar(usuario, "Pass1234");
+        Set<Frame> antes = new HashSet<>(Arrays.asList(Frame.getFrames()));
+
+        new LoginScreenObject(loginWindow)
+                .preencherLogin(usuario)
+                .preencherSenha("Pass1234")
+                .clicarEntrarComSucesso(antes)
+                .clicarNovoJogo();
+
         gameWindow = aguardarJanelaPorTitulo("Aventura Mágica", 4000);
 
         GameScreenObject game = new GameScreenObject(gameWindow);
@@ -275,18 +297,12 @@ class GameSystemTest {
         game.moverNorte();
         Pause.pause(500, TimeUnit.MILLISECONDS);
 
-        assertThat(game.textoLog())
-                .as("Log deve conter 'Bloqueado'")
-                .containsIgnoringCase("Bloqueado");
-        assertThat(game.textoMovimentos())
-                .as("Movimento inválido não deve consumir o contador")
-                .isEqualTo(movAntes);
+        assertThat(game.textoLog()).containsIgnoringCase("Bloqueado");
+        assertThat(game.textoMovimentos()).isEqualTo(movAntes);
 
         game.moverLeste();
         Pause.pause(400, TimeUnit.MILLISECONDS);
-        assertThat(game.textoMovimentos())
-                .as("Movimento válido após bloqueio deve ser aceito")
-                .isNotEqualTo(movAntes);
+        assertThat(game.textoMovimentos()).isNotEqualTo(movAntes);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -315,19 +331,20 @@ class GameSystemTest {
     @Test
     @DisplayName("J10: Sair no MainMenu fecha o menu e abre nova tela de login")
     void j10_sairDoMenuPrincipalExecutaSemExcecao() {
-        criarELogar();
+        String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
+        cadastrarUsuarioAuxiliar(usuario, "Pass1234");
+        Set<Frame> antesDoLogin = new HashSet<>(Arrays.asList(Frame.getFrames()));
 
-        // Snapshot dos frames existentes ANTES de clicar Sair.
-        // aguardarNovaJanelaComTitulo(Set) exclui esses frames da busca,
-        // evitando encontrar o loginWindow antigo (já disposed por criarELogar).
-        Set<Frame> framesAntes = new HashSet<>(Arrays.asList(Frame.getFrames()));
+        MainMenuScreenObject menu = new LoginScreenObject(loginWindow)
+                .preencherLogin(usuario)
+                .preencherSenha("Pass1234")
+                .clicarEntrarComSucesso(antesDoLogin);
 
-        new MainMenuScreenObject(menuWindow).clicarSair();
+        Set<Frame> framesAntesDeSair = new HashSet<>(Arrays.asList(Frame.getFrames()));
+        menu.clicarSair();
 
-        // O botão Sair chama dispose() no MainMenu e new LoginScreen().
-        // Buscamos apenas janelas que NÃO existiam antes do clique.
-        FrameFixture novoLogin = aguardarNovaJanelaComTitulo(
-                "login", framesAntes, 8_000);
+        LoginScreenObject wrapperHelper = new LoginScreenObject(loginWindow);
+        FrameFixture novoLogin = wrapperHelper.aguardarNovaJanelaComTitulo("login", framesAntesDeSair, 8000);
 
         try {
             new LoginScreenObject(novoLogin).verificarBotaoEntrarVisivel();
@@ -337,59 +354,22 @@ class GameSystemTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Utilitários privados
+    // Utilitários privados do teste
     // ═══════════════════════════════════════════════════════════════════════
 
-    /**
-     * Cria usuário via GUI e faz login. Preenche {@code menuWindow}.
-     *
-     * CORREÇÃO DO TRAVAMENTO:
-     * LoginScreen.login() chama this.dispose() antes de abrir o MainMenu.
-     * Depois de clicarEntrar(), o loginWindow aponta para uma janela destruída.
-     * Se o robot tentar interagir com ela, trava indefinidamente.
-     *
-     * Solução:
-     * 1. Após cadastrar, desacoplamos o robot do loginWindow com cleanUp().
-     * 2. Chamamos clicarEntrar() diretamente no componente antes do cleanUp.
-     * 3. Buscamos o MainMenu pelo título assim que ele aparecer.
-     */
-    private String criarELogar() {
-        String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
-        String senha   = "Pass1234";
-
+    /** Apenas realiza o fluxo do popup de cadastro para dar suporte às jornadas */
+    private void cadastrarUsuarioAuxiliar(String usuario, String senha) {
         new LoginScreenObject(loginWindow).clicarCadastrar();
-
         JOptionPaneFixture opcao = loginWindow.optionPane(timeout(3000));
         textBoxNoOptPane(opcao, 0).enterText(usuario);
         textBoxNoOptPane(opcao, 1).enterText(senha);
         opcao.okButton().click();
-
         loginWindow.optionPane(timeout(3000)).okButton().click();
-
-        new LoginScreenObject(loginWindow)
-                .preencherLogin(usuario)
-                .preencherSenha(senha)
-                .clicarEntrar();
-
-        menuWindow = aguardarJanelaPorTitulo("Menu Principal - " + usuario, 8000);
-
-        loginWindow = null;
-
-        return usuario;
     }
 
-    /**
-     * Localiza campos de texto dentro de um JOptionPane por índice de ordem.
-     * textBox(int) não existe na API do AssertJ Swing — usamos GenericTypeMatcher.
-     *
-     * Ordem em LoginScreen.createAccount():
-     *   0 → loginF  (JTextField)
-     *   1 → passF   (JPasswordField)
-     *   2 → avatarF (JTextField, padrão "avatar1.png")
-     */
     private JTextComponentFixture textBoxNoOptPane(JOptionPaneFixture pane, int indice) {
         final int[] contador = {0};
-        return pane.textBox(new GenericTypeMatcher<JTextComponent>(JTextComponent.class) {
+        return pane.textBox(new GenericTypeMatcher<>(JTextComponent.class) {
             @Override
             protected boolean isMatching(JTextComponent c) {
                 if (!c.isVisible()) return false;
@@ -403,10 +383,6 @@ class GameSystemTest {
         });
     }
 
-    /**
-     * Aguarda JFrame cujo título contenha {@code fragmento} (case-insensitive).
-     * Usa título em vez de instanceof para ser agnóstico ao tipo concreto.
-     */
     private FrameFixture aguardarJanelaPorTitulo(String fragmento, long timeoutMs) {
         long fim = System.currentTimeMillis() + timeoutMs;
         while (System.currentTimeMillis() < fim) {
@@ -415,7 +391,8 @@ class GameSystemTest {
                         && f instanceof JFrame
                         && f.getTitle() != null
                         && f.getTitle().toLowerCase().contains(fragmento.toLowerCase())) {
-                    return new FrameFixture((JFrame) f);
+
+                    return new FrameFixture(robot, f);
                 }
             }
             Pause.pause(100, TimeUnit.MILLISECONDS);
@@ -424,85 +401,4 @@ class GameSystemTest {
                 "Nenhuma janela com título contendo '" + fragmento
                         + "' ficou visível em " + timeoutMs + "ms");
     }
-
-    /**
-     * Igual a aguardarJanelaPorTitulo, mas ignora {@code excluir}.
-     *
-     * Necessário no J10: Frame.getFrames() ainda lista o loginWindow antigo
-     * (destruído por LoginScreen.dispose() dentro de criarELogar()) porque o
-     * GC ainda não o coletou. Sem a exclusão, o helper encontrava a janela
-     * antiga e nunca chegava ao novo LoginScreen aberto pelo botão Sair.
-     */
-    private FrameFixture aguardarNovaJanelaComTitulo(String fragmento, Frame excluir, long timeoutMs) {
-        long fim = System.currentTimeMillis() + timeoutMs;
-        while (System.currentTimeMillis() < fim) {
-            for (Frame f : Frame.getFrames()) {
-                if (f != excluir
-                        && f.isVisible()
-                        && f instanceof JFrame
-                        && f.getTitle() != null
-                        && f.getTitle().toLowerCase().contains(fragmento.toLowerCase())) {
-                    return new FrameFixture((JFrame) f);
-                }
-            }
-            Pause.pause(100, TimeUnit.MILLISECONDS);
-        }
-        throw new AssertionError(
-                "Nenhuma janela nova com título contendo '" + fragmento
-                        + "' ficou visível em " + timeoutMs + "ms");
-    }
-
-
-    private void aguardarFrameSumir(JFrame frame, long timeoutMs) {
-        long fim = System.currentTimeMillis() + timeoutMs;
-
-        while (System.currentTimeMillis() < fim) {
-            if (!frame.isShowing() || !frame.isDisplayable()) {
-                return;
-            }
-
-            Pause.pause(100, TimeUnit.MILLISECONDS);
-        }
-
-        throw new AssertionError(
-                "A janela '" + frame.getTitle() + "' não fechou em " + timeoutMs + "ms"
-        );
-    }
-    private FrameFixture aguardarNovaJanelaComTitulo(
-            String fragmento,
-            Set<Frame> framesAntigos,
-            long timeoutMs
-    ) {
-        long fim = System.currentTimeMillis() + timeoutMs;
-
-        while (System.currentTimeMillis() < fim) {
-            for (Frame f : Frame.getFrames()) {
-                if (!framesAntigos.contains(f)
-                        && f.isVisible()
-                        && f instanceof JFrame
-                        && f.getTitle() != null
-                        && f.getTitle().toLowerCase().contains(fragmento.toLowerCase())) {
-
-                    JFrame frame = (JFrame) f;
-
-                    GuiActionRunner.execute((java.util.concurrent.Callable<Void>) () -> {
-                        frame.toFront();
-                        frame.requestFocus();
-                        return null;
-                    });
-
-                    return new FrameFixture(frame);
-                }
-            }
-
-            Pause.pause(100, TimeUnit.MILLISECONDS);
-        }
-
-        throw new AssertionError(
-                "Nenhuma janela NOVA com título contendo '" + fragmento
-                        + "' ficou visível em " + timeoutMs + "ms"
-        );
-    }
-
-
 }

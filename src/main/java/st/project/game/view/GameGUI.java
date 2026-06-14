@@ -13,6 +13,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.util.Objects;
 import java.util.Stack;
 
 public class GameGUI extends JFrame implements PropertyChangeListener {
@@ -262,6 +263,7 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
                 g2.dispose();
             }
         };
+        btn.setName(Objects.requireNonNullElse(direcao, "nulo"));
         btn.setPreferredSize(new Dimension(72, 30));
         btn.setOpaque(false);
         btn.setContentAreaFilled(false);

@@ -149,7 +149,7 @@ class LoginScreenEstruturaTest {
     @DisplayName("Estrutura: createButton → botão branco sem focus")
     void testeEstruturaCreateButton() {
 
-        JButton btn = screen.createButton("Teste");
+        JButton btn = screen.createButton("Teste", "testBtn");
 
         assertThat(btn.getForeground())
                 .isEqualTo(java.awt.Color.WHITE);

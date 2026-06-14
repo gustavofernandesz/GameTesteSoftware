@@ -37,29 +37,29 @@ public class MainMenu extends JFrame {
         add(welcome, gbc);
 
         gbc.gridy = 1;
-        JButton newGameBtn = createButton("Novo Jogo");
+        JButton newGameBtn = createButton("Novo Jogo", "newGameButton");
         newGameBtn.addActionListener(e -> startNewGame());
         add(newGameBtn, gbc);
 
         gbc.gridy = 2;
-        JButton continueBtn = createButton("Continuar");
+        JButton continueBtn = createButton("Continuar", "continueButton");
         continueBtn.addActionListener(e -> continueGame());
         add(continueBtn, gbc);
 
         gbc.gridy = 3;
-        JButton rankingBtn = createButton("Ver Ranking");
+        JButton rankingBtn = createButton("Ver Ranking", "rankingButton");
         rankingBtn.addActionListener(e -> new RankingDialog(userManager.getAllUsers()));
         add(rankingBtn, gbc);
 
         if (userManager.isSuperUser(user.getLogin())) {
             gbc.gridy = 4;
-            JButton manageBtn = createButton("Gerenciar Usuários");
+            JButton manageBtn = createButton("Gerenciar Usuários",  "manageButton");
             manageBtn.addActionListener(e -> manageUsers());
             add(manageBtn, gbc);
         }
 
         gbc.gridy = 5;
-        JButton logoutBtn = createButton("Sair");
+        JButton logoutBtn = createButton("Sair",  "logoutButton");
         logoutBtn.addActionListener(e -> {
             dispose();
             new LoginScreen();
@@ -114,6 +114,15 @@ public class MainMenu extends JFrame {
         DefaultListModel<String> listModel = new DefaultListModel<>();
         JList<String> userList = new JList<>(listModel);
         userManager.getAllUsers().forEach(u -> listModel.addElement(u.getLogin() + " (score: " + u.getBestScore() + ")"));
+        JButton deleteBtn = getJButton(userList, dialog, listModel);
+        dialog.add(new JScrollPane(userList), BorderLayout.CENTER);
+        dialog.add(deleteBtn, BorderLayout.SOUTH);
+        dialog.setSize(300, 250);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    private JButton getJButton(JList<String> userList, JDialog dialog, DefaultListModel<String> listModel) {
         JButton deleteBtn = new JButton("Excluir selecionado");
         deleteBtn.addActionListener(ev -> {
             String selected = userList.getSelectedValue();
@@ -129,18 +138,15 @@ public class MainMenu extends JFrame {
                 listModel.removeElement(selected);
             }
         });
-        dialog.add(new JScrollPane(userList), BorderLayout.CENTER);
-        dialog.add(deleteBtn, BorderLayout.SOUTH);
-        dialog.setSize(300, 250);
-        dialog.setLocationRelativeTo(this);
-        dialog.setVisible(true);
+        return deleteBtn;
     }
 
-    private JButton createButton(String text) {
+    private JButton createButton(String text, String id) {
         JButton btn = new JButton(text);
         btn.setBackground(new Color(0x1C1C38));
         btn.setForeground(Color.WHITE);
         btn.setFocusPainted(false);
+        btn.setName(id);
         return btn;
     }
 }

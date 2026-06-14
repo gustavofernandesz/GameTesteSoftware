@@ -2,10 +2,11 @@ package st.project.game.system.screens;
 
 import org.assertj.swing.core.GenericTypeMatcher;
 import org.assertj.swing.fixture.FrameFixture;
-import org.assertj.swing.fixture.JButtonFixture;
 import org.assertj.swing.fixture.JTextComponentFixture;
 
 import javax.swing.*;
+import java.awt.*;
+import java.util.Set;
 
 /**
  * LoginScreenObject — Screen Object da tela de login.
@@ -22,14 +23,6 @@ public class LoginScreenObject extends BaseScreen {
     }
 
     // ── helpers de localização ────────────────────────────────────────────
-
-    private JButtonFixture botaoPorTexto(String texto) {
-        return window.button(new GenericTypeMatcher<JButton>(JButton.class) {
-            @Override protected boolean isMatching(JButton b) {
-                return texto.equals(b.getText()) && b.isShowing();
-            }
-        });
-    }
 
     private JTextComponentFixture campoLogin() {
         return window.textBox(new GenericTypeMatcher<JTextField>(JTextField.class) {
@@ -49,6 +42,7 @@ public class LoginScreenObject extends BaseScreen {
 
     // ── Ações ─────────────────────────────────────────────────────────────
 
+
     public LoginScreenObject preencherLogin(String login) {
         campoLogin().deleteText().enterText(login);
         return this;
@@ -60,7 +54,14 @@ public class LoginScreenObject extends BaseScreen {
     }
 
     public LoginScreenObject clicarEntrar() {
-        botaoPorTexto("Entrar").click();
+        // 1. Em vez de simular o clique físico do mouse que bloqueia a execução,
+        // pegamos a referência ao componente JButton real da tela.
+        javax.swing.JButton botao = botaoPorTexto("Entrar").target();
+
+        // 2. Disparamos o método doClick() programático de forma assíncrona na EDT.
+        // Isso faz com que o popup abra, mas o robô NÃO fique esperando ele fechar.
+        javax.swing.SwingUtilities.invokeLater(botao::doClick);
+
         return this;
     }
 
@@ -110,5 +111,17 @@ public class LoginScreenObject extends BaseScreen {
     public LoginScreenObject fecharDialogoDeErro() {
         window.optionPane().okButton().click();
         return this;
+    }
+    // No LoginScreenObject.java:
+    public MainMenuScreenObject clicarEntrarComSucesso(java.util.Set<java.awt.Frame> framesAntigos) {
+        // 1. Localiza o botão e dispara o clique de forma assíncrona para evitar travar a EDT
+        javax.swing.JButton botao = botaoPorTexto("Entrar").target();
+        javax.swing.SwingUtilities.invokeLater(botao::doClick);
+
+        // 2. Usa o método herdado da BaseScreen para capturar a nova janela que vai se abrir
+        org.assertj.swing.fixture.FrameFixture menuWin = aguardarNovaJanelaComTitulo("Menu Principal", framesAntigos, 8000);
+
+        // 3. Retorna o próximo Screen Object encadeando a jornada de forma fluente!
+        return new MainMenuScreenObject(menuWin);
     }
 }

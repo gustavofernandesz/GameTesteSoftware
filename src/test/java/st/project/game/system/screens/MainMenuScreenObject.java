@@ -1,6 +1,5 @@
 package st.project.game.system.screens;
 
-import org.assertj.swing.core.GenericTypeMatcher;
 import org.assertj.swing.edt.GuiActionRunner;
 import org.assertj.swing.fixture.FrameFixture;
 import org.assertj.swing.fixture.JButtonFixture;
@@ -17,17 +16,6 @@ public class MainMenuScreenObject extends BaseScreen {
 
     public MainMenuScreenObject(FrameFixture window) {
         super(window);
-    }
-
-    private JButtonFixture botaoPorTexto(String texto) {
-        return window.button(new GenericTypeMatcher<JButton>(JButton.class) {
-            @Override
-            protected boolean isMatching(JButton b) {
-                return b.isShowing()
-                        && b.isEnabled()
-                        && texto.equals(b.getText());
-            }
-        });
     }
 
     // ── Ações ─────────────────────────────────────────────────────────────

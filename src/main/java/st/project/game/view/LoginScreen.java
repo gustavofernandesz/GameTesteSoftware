@@ -63,6 +63,7 @@ public class LoginScreen extends JFrame {
         add(createLabel("Login:"), gbc);
 
         loginField = new JTextField(15);
+        loginField.setName("loginField");
 
         gbc.gridx = 1;
 
@@ -76,6 +77,7 @@ public class LoginScreen extends JFrame {
         add(createLabel("Senha:"), gbc);
 
         passwordField = new JPasswordField(15);
+        passwordField.setName("passwordField");
 
         gbc.gridx = 1;
 
@@ -86,9 +88,9 @@ public class LoginScreen extends JFrame {
         JPanel buttonPanel = new JPanel(new GridLayout(3, 1, 5, 5));
         buttonPanel.setOpaque(false);
 
-        JButton loginButton = createButton("Entrar");
-        JButton createAccountButton = createButton("Criar Conta");
-        JButton rankingButton = createButton("Ver Ranking");
+        JButton loginButton = createButton("Entrar", "loginButton");
+        JButton createAccountButton = createButton("Criar Conta", "createAccountButton");
+        JButton rankingButton = createButton("Ver Ranking",  "rankingButton");
 
         buttonPanel.add(loginButton);
         buttonPanel.add(createAccountButton);
@@ -158,10 +160,13 @@ public class LoginScreen extends JFrame {
     protected void createAccount() {
 
         JTextField loginF = new JTextField();
+        loginF.setName("createAccountLoginField");
 
         JPasswordField passF = new JPasswordField();
+        passF.setName("createAccountPasswordField");
 
         JTextField avatarF = new JTextField("avatar1.png");
+        avatarF.setName("createAccountAvatarField");
 
         Object[] msg = {
                 "Login:", loginF,
@@ -271,7 +276,7 @@ public class LoginScreen extends JFrame {
     /**
      * Cria botões padronizados
      */
-    protected JButton createButton(String text) {
+    protected JButton createButton(String text, String id) {
 
         JButton btn = new JButton(text);
 
@@ -280,6 +285,8 @@ public class LoginScreen extends JFrame {
         btn.setForeground(Color.WHITE);
 
         btn.setFocusPainted(false);
+
+        btn.setName(id);
 
         return btn;
     }

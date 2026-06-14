@@ -35,7 +35,8 @@ public class RankingDialog extends JDialog {
         scroll.setBorder(BorderFactory.createEmptyBorder());
         add(scroll, BorderLayout.CENTER);
 
-        JButton closeBtn = new JButton("Fechar");
+        JButton closeBtn = createButton("Fechar", "closeButton");
+
         closeBtn.addActionListener(e -> dispose());
         JPanel bottom = new JPanel();
         bottom.setOpaque(false);
@@ -45,5 +46,11 @@ public class RankingDialog extends JDialog {
         setSize(400, 300);
         setLocationRelativeTo(null);
         setVisible(true);
+    }
+
+    private JButton createButton(String text, String id) {
+        JButton btn = new JButton(text);
+        btn.setName(id);
+        return btn;
     }
 }

@@ -121,7 +121,7 @@ class LoginScreenFronteiraTest {
     @DisplayName("Fronteira: botão texto vazio")
     void testeFronteiraBotaoTextoVazio() {
 
-        JButton btn = screen.createButton("");
+        JButton btn = screen.createButton("", "");
 
         assertThat(btn.getText()).isEmpty();
 
