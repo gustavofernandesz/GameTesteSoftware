@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
 
@@ -11,34 +11,48 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <java.version>21</java.version>
 
-        <maven.compiler.source>${java.version}</maven.compiler.source>
-        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <!-- Java -->
+        <java.version>25</java.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
+        <!-- Compiler -->
+        <maven.compiler.release>${java.version}</maven.compiler.release>
+        <maven.compiler.version>3.14.1</maven.compiler.version>
+
+        <!-- JUnit -->
         <junit.jupiter.version>5.12.2</junit.jupiter.version>
         <junit.platform.launcher.version>1.12.2</junit.platform.launcher.version>
 
+        <!-- AssertJ -->
         <assertj.version>3.27.7</assertj.version>
+        <assertj.swing.version>3.17.1</assertj.swing.version>
 
+        <!-- Mockito -->
         <mockito.version>5.11.0</mockito.version>
 
+        <!-- jqwik -->
         <jqwik.version>1.8.5</jqwik.version>
 
+        <!-- JaCoCo -->
+        <jacoco.version>0.8.13</jacoco.version>
+
+        <!-- PIT -->
         <pitest.version>1.15.8</pitest.version>
         <pitest.junit5.version>1.2.1</pitest.junit5.version>
 
-        <maven.compiler.version>3.13.0</maven.compiler.version>
+        <!-- Surefire -->
         <maven.surefire.version>3.5.3</maven.surefire.version>
 
-        <jacoco.version>0.8.13</jacoco.version>
     </properties>
 
     <dependencies>
 
-        <!-- JUnit 5 -->
+        <!-- ========================= -->
+        <!-- JUnit 5                   -->
+        <!-- ========================= -->
+
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -46,14 +60,32 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- AssertJ -->
+        <!-- ========================= -->
+        <!-- AssertJ Core              -->
+        <!-- ========================= -->
+
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <version>${assertj.version}</version>
+            <scope>test</scope>
         </dependency>
 
-        <!-- Mockito -->
+        <!-- ========================= -->
+        <!-- AssertJ Swing             -->
+        <!-- ========================= -->
+
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-swing</artifactId>
+            <version>${assertj.swing.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- ========================= -->
+        <!-- Mockito                   -->
+        <!-- ========================= -->
+
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
@@ -68,7 +100,10 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- jqwik -->
+        <!-- ========================= -->
+        <!-- jqwik                     -->
+        <!-- ========================= -->
+
         <dependency>
             <groupId>net.jqwik</groupId>
             <artifactId>jqwik</artifactId>
@@ -76,45 +111,62 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.assertj</groupId>
-            <artifactId>assertj-swing</artifactId>
-            <version>3.17.1</version>
-            <scope>test</scope>
-        </dependency>
-
     </dependencies>
 
     <build>
+
         <plugins>
 
-            <!-- Compiler -->
+            <!-- ======================================= -->
+            <!-- Maven Compiler                          -->
+            <!-- ======================================= -->
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven.compiler.version}</version>
 
                 <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
+                    <release>${java.version}</release>
                 </configuration>
             </plugin>
+
+            <!-- ======================================= -->
+            <!-- Maven Surefire                          -->
+            <!-- ======================================= -->
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.3</version>
+                <version>${maven.surefire.version}</version>
+
                 <configuration>
+
+                    <useModulePath>false</useModulePath>
+
                     <argLine>
                         @{argLine}
-                        --add-opens=java.base/java.util=ALL-UNNAMED
                         -Djava.awt.headless=false
+
+                        --add-opens=java.base/java.lang=ALL-UNNAMED
+                        --add-opens=java.base/java.util=ALL-UNNAMED
+
+                        --add-opens=java.desktop/java.awt=ALL-UNNAMED
+                        --add-opens=java.desktop/java.awt.event=ALL-UNNAMED
+                        --add-opens=java.desktop/javax.swing=ALL-UNNAMED
+                        --add-opens=java.desktop/javax.swing.text=ALL-UNNAMED
                     </argLine>
+
                 </configuration>
+
             </plugin>
 
-            <!-- JaCoCo -->
+            <!-- ======================================= -->
+            <!-- JaCoCo                                  -->
+            <!-- ======================================= -->
+
             <plugin>
+
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>${jacoco.version}</version>
@@ -137,19 +189,24 @@
                         <goals>
                             <goal>report</goal>
                         </goals>
+
                     </execution>
 
                 </executions>
+
             </plugin>
 
-            <!-- PIT Mutation Testing -->
+            <!-- ======================================= -->
+            <!-- PIT                                     -->
+            <!-- ======================================= -->
+
             <plugin>
+
                 <groupId>org.pitest</groupId>
                 <artifactId>pitest-maven</artifactId>
                 <version>${pitest.version}</version>
 
                 <dependencies>
-
 
                     <dependency>
                         <groupId>org.pitest</groupId>
@@ -168,8 +225,17 @@
                 <configuration>
 
                     <jvmArgs>
+
+                        <value>-Djava.awt.headless=false</value>
+
                         <value>--add-opens=java.base/java.lang=ALL-UNNAMED</value>
                         <value>--add-opens=java.base/java.util=ALL-UNNAMED</value>
+
+                        <value>--add-opens=java.desktop/java.awt=ALL-UNNAMED</value>
+                        <value>--add-opens=java.desktop/java.awt.event=ALL-UNNAMED</value>
+                        <value>--add-opens=java.desktop/javax.swing=ALL-UNNAMED</value>
+                        <value>--add-opens=java.desktop/javax.swing.text=ALL-UNNAMED</value>
+
                     </jvmArgs>
 
                     <targetClasses>
@@ -196,9 +262,8 @@
 
             </plugin>
 
-
-
         </plugins>
+
     </build>
 
 </project>

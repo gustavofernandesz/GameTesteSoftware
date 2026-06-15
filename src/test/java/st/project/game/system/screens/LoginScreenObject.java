@@ -82,11 +82,10 @@ public class LoginScreenObject extends BaseScreen {
     // ── Transição de Jornada ──────────────────────────────────────────────
 
     public MainMenuScreenObject clicarEntrarComSucesso(Set<Frame> framesAntigos) {
-        // Agora busca o botão diretamente pelo NAME
-        javax.swing.JButton botao = window.button("loginButton").target();
-        javax.swing.SwingUtilities.invokeLater(botao::doClick);
+        window.button("loginButton").click();
 
-        org.assertj.swing.fixture.FrameFixture menuWin = aguardarNovaJanelaComTitulo("Menu Principal", framesAntigos, 8000);
+        FrameFixture menuWin =
+                aguardarNovaJanelaComTitulo("Menu Principal", framesAntigos, 8000);
 
         return new MainMenuScreenObject(menuWin);
     }

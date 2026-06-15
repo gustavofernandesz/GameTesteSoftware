@@ -61,11 +61,8 @@ public class GameScreenObject extends BaseScreen {
     public String textoLog() {
         // Mantido com GenericTypeMatcher pois é o único JTextArea da tela
         // (mas você pode dar setName("logArea") nele no código real depois!)
-        return window.textBox(new GenericTypeMatcher<>(JTextArea.class) {
-            @Override
-            protected boolean isMatching(JTextArea t) {
-                return true;
-            }
+        return window.textBox(new GenericTypeMatcher<JTextArea>(JTextArea.class) {
+            @Override protected boolean isMatching(JTextArea t) { return true; }
         }).text();
     }
 
@@ -86,11 +83,8 @@ public class GameScreenObject extends BaseScreen {
     }
 
     public GameScreenObject verificarLogVisivel() {
-        window.textBox(new GenericTypeMatcher<>(JTextArea.class) {
-            @Override
-            protected boolean isMatching(JTextArea t) {
-                return true;
-            }
+        window.textBox(new GenericTypeMatcher<JTextArea>(JTextArea.class) {
+            @Override protected boolean isMatching(JTextArea t) { return true; }
         }).requireVisible();
         return this;
     }

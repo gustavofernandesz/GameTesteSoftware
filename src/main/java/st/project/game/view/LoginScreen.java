@@ -32,7 +32,7 @@ public class LoginScreen extends JFrame {
     private void initComponents() {
 
         setTitle("Cálice Sagrado - Login");
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setLayout(new GridBagLayout());
 
         getContentPane().setBackground(new Color(0x0D0D1A));

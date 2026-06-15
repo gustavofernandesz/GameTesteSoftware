@@ -595,6 +595,10 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
 
             case "gameOver":
                 boolean vitoria = (boolean) evt.getNewValue();
+
+                // 1. DESLIGA O CRONÔMETRO PRIMEIRO! Antes de qualquer pop-up travar a tela.
+                engine.encerrarJogo();
+
                 if (vitoria) {
                     statusLabel.setForeground(ACCENT_GOLD);
                     statusLabel.setText("VITORIA! Missão cumprida!");
@@ -602,12 +606,13 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
                     log("  PARABÉNS, AVENTUREIRO!");
                     log("  Você encontrou o Cálice!");
                     log("═════════════════════════════");
+
                     JOptionPane.showMessageDialog(this,
                             "Você venceu! Missão cumprida!",
                             "VITÓRIA", JOptionPane.INFORMATION_MESSAGE);
-                    // Atualiza usuário e remove save
+
                     userManager.updateUserScoreAndSession(user, model.getScore());
-                    System.out.println(saveManager.deleteSave(user, slot));
+                    saveManager.deleteSave(user, slot);
                 } else {
                     statusLabel.setForeground(new Color(0xFF4444));
                     statusLabel.setText("Tempo esgotado - Fim de Jogo");
@@ -615,17 +620,22 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
                     log("  TEMPO ESGOTADO");
                     log("  A missão fracassou...");
                     log("═════════════════════════════");
+
                     JOptionPane.showMessageDialog(this,
                             "Tempo esgotado! Fim de jogo.",
                             "FIM DE JOGO", JOptionPane.WARNING_MESSAGE);
-                    // Em caso de derrota, também remove o save
+
                     saveManager.deleteSave(user, slot);
                 }
-                engine.encerrarJogo();
-                // Fecha a janela e volta ao menu
+
+                // 2. BLINDAGEM CONTRA TESTES FANTASMAS
+                // O SwingUtilities.invokeLater só vai abrir o Menu Principal se o robô
+                // de testes ainda não tiver destruído esta janela (isDisplayable).
                 SwingUtilities.invokeLater(() -> {
-                    dispose();
-                    new MainMenu(user, userManager);
+                    if (this.isDisplayable()) {
+                        dispose();
+                        new MainMenu(user, userManager);
+                    }
                 });
                 break;
         }
@@ -679,5 +689,14 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
             b.setPreferredSize(new Dimension(0, 0));
             return b;
         }
+    }
+
+    @Override
+    public void dispose() {
+        // Garante que o relógio morre quando a janela for destruída!
+        if (engine != null) {
+            engine.encerrarJogo();
+        }
+        super.dispose();
     }
 }

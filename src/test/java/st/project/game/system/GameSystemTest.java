@@ -41,7 +41,28 @@ class GameSystemTest {
     }
 
     @BeforeEach
-    void abrirLoginScreen() {
+    void limparArquivosE_AbrirLoginScreen() {
+        try {
+            // 1. Limpa os arquivos de texto
+            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get("usuarios.txt"));
+            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get("ranking.txt"));
+
+            // 2. Limpa a PASTA de saves corretamente
+            java.io.File pastaSaves = new java.io.File("saves");
+            if (pastaSaves.exists() && pastaSaves.isDirectory()) {
+                java.io.File[] arquivos = pastaSaves.listFiles();
+                if (arquivos != null) {
+                    for (java.io.File f : arquivos) {
+                        if (!f.isDirectory()) {
+                            f.delete();
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        // 3. Inicia o robô e a tela limpos
         robot = org.assertj.swing.core.BasicRobot.robotWithNewAwtHierarchy();
         LoginScreen frame = GuiActionRunner.execute(
                 (java.util.concurrent.Callable<LoginScreen>) LoginScreen::new);
@@ -50,24 +71,26 @@ class GameSystemTest {
     }
 
     @AfterEach
-    void limparArquivosE_AbrirLoginScreen() {
-        try {
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get("usuarios.txt"));
-            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get("ranking.txt"));
-            // Limpa a pasta de saves, etc...
-        } catch (java.io.IOException e) {
-            // ignora
+    void fecharTodasAsJanelas() {
+        // Busca TODAS as janelas ativas na JVM (Frames, Dialogs, Popups)
+        for (java.awt.Window w : java.awt.Window.getWindows()) {
+            try {
+                if (w.isDisplayable()) {
+                    GuiActionRunner.execute((java.util.concurrent.Callable<Void>) () -> {
+                        w.setVisible(false);
+                        w.dispose();
+                        return null;
+                    });
+                }
+            } catch (Exception ignored) {
+            }
         }
 
-        robot = org.assertj.swing.core.BasicRobot.robotWithNewAwtHierarchy();
-
-        for (Frame f : Frame.getFrames()) {
-            if (f.isDisplayable()) {
-                GuiActionRunner.execute((java.util.concurrent.Callable<Void>) () -> {
-                    f.dispose();
-                    return null;
-                });
-            }
+        if (robot != null) {
+            try {
+                robot.cleanUp();
+            } catch (Exception ignored) {}
+            robot = null;
         }
     }
 
@@ -76,7 +99,7 @@ class GameSystemTest {
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("J1: abrir sistema exibe campos de login, senha e botões esperados")
+    @DisplayName("J01: abrir sistema exibe campos de login, senha e botões esperados")
     void j1_abrirSistemaExibeTelaDeLogin() {
         new LoginScreenObject(loginWindow)
                 .verificarCampoLoginVisivel()
@@ -91,7 +114,7 @@ class GameSystemTest {
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("J2: login inválido exibe 'Login ou senha incorretos' e permanece na tela")
+    @DisplayName("J02: login inválido exibe 'Login ou senha incorretos' e permanece na tela")
     void j2_loginInvalidoExibeMensagemDeErro() {
         LoginScreenObject login = new LoginScreenObject(loginWindow);
 
@@ -107,7 +130,7 @@ class GameSystemTest {
     }
 
     @Test
-    @DisplayName("J2b: campos vazios exibem 'Preencha todos os campos'")
+    @DisplayName("J02b: campos vazios exibem 'Preencha todos os campos'")
     void j2b_loginCamposVaziosExibeMensagemDeErro() {
         new LoginScreenObject(loginWindow).clicarEntrar();
 
@@ -123,7 +146,7 @@ class GameSystemTest {
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("J3: cadastro com nome único exibe 'Conta criada com sucesso'")
+    @DisplayName("J03: cadastro com nome único exibe 'Conta criada com sucesso'")
     void j3_cadastroValidoCriaUsuario() {
         String novoUsuario = "usr_" + UUID.randomUUID().toString().substring(0, 8);
 
@@ -146,7 +169,7 @@ class GameSystemTest {
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("J4a: cadastro com nome vazio exibe 'Login e senha são obrigatórios'")
+    @DisplayName("J04a: cadastro com nome vazio exibe 'Login e senha são obrigatórios'")
     void j4a_cadastroNomeVazioExibeErro() {
         new LoginScreenObject(loginWindow).clicarCadastrar();
 
@@ -164,7 +187,7 @@ class GameSystemTest {
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("J4b: cadastrar o mesmo nome duas vezes exibe 'Login já existe'")
+    @DisplayName("J04b: cadastrar o mesmo nome duas vezes exibe 'Login já existe'")
     void j4b_cadastroDuplicadoExibeErro() {
         String nome = "dup_" + UUID.randomUUID().toString().substring(0, 8);
 
@@ -191,7 +214,7 @@ class GameSystemTest {
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("J5: login válido abre MainMenu com botões Novo Jogo, Ranking e Sair")
+    @DisplayName("J05: login válido abre MainMenu com botões Novo Jogo, Ranking e Sair")
     void j5_loginValidoAbreMenuPrincipal() {
         // 1. Preparamos o cadastro de um usuário de teste
         String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
@@ -219,7 +242,7 @@ class GameSystemTest {
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("J6: novo jogo abre GameGUI com score, tempo, movimentos, nível, andar e log")
+    @DisplayName("J06: novo jogo abre GameGUI com score, tempo, movimentos, nível, andar e log")
     void j6_iniciarNovoJogoExibeGameGUI() {
         String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
         cadastrarUsuarioAuxiliar(usuario, "Pass1234");
@@ -254,7 +277,7 @@ class GameSystemTest {
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("J7: pressionar D (leste) diminui movimentos restantes e popula log")
+    @DisplayName("J07: pressionar D (leste) diminui movimentos restantes e popula log")
     void j7_movimentoValidoAlteraMovimentosELog() {
         String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
         cadastrarUsuarioAuxiliar(usuario, "Pass1234");
@@ -289,7 +312,7 @@ class GameSystemTest {
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("J8: W (norte) na entrada loga 'Bloqueado' e não consome movimento")
+    @DisplayName("J08: W (norte) na entrada loga 'Bloqueado' e não consome movimento")
     void j8_movimentoBloqueadoLogaMensagemEJogoContinua() {
         String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
         cadastrarUsuarioAuxiliar(usuario, "Pass1234");
@@ -333,7 +356,7 @@ class GameSystemTest {
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("J9: Ver Ranking exibe RankingDialog e fecha corretamente")
+    @DisplayName("J09: Ver Ranking exibe RankingDialog e fecha corretamente")
     void j9_rankingPelaTelaDeLoginAbreEFecha() {
         new LoginScreenObject(loginWindow).clicarRanking();
 
@@ -402,7 +425,6 @@ class GameSystemTest {
         String movAntes = game.textoMovimentos();
         game.moverLeste();
 
-        // Espera condicional melhorada para evitar flakiness (espera o label atualizar)
         long startTime = System.currentTimeMillis();
         while (game.textoMovimentos().equals(movAntes) && (System.currentTimeMillis() - startTime) < 2000) {
             Pause.pause(100, TimeUnit.MILLISECONDS);
@@ -413,23 +435,20 @@ class GameSystemTest {
                 .as("O movimento deveria ter alterado o texto de movimentos")
                 .isNotEqualTo(movAntes);
 
-        // 4. Fechar o jogo / Voltar ao menu principal
-        // ATENÇÃO: Dependendo de como seu jogo funciona, você pode ter um botão 'Voltar' ou precisar fechar o frame.
-        // Aqui simulo fechando a janela do jogo e voltando para a tela de login para relogar e Continuar.
-        gameWindow.cleanUp(); // Fecha a janela do jogo
+        // 4. Fechar o jogo salvando o progresso (simulando o clique no "X" da janela)
+        Set<Frame> framesAntesDeFechar = new HashSet<>(Arrays.asList(Frame.getFrames()));
 
-        // Vamos relogar para simular um novo acesso (ou você pode clicar em um botão Voltar se houver)
-        abrirLoginScreen(); // Reabre a tela de login
-        Set<Frame> antesNovoMenu = new HashSet<>(Arrays.asList(Frame.getFrames()));
+        // O método close() simula o fechamento natural, acionando o windowClosing e salvando!
+        gameWindow.close();
 
-        MainMenuScreenObject novoMenu = new LoginScreenObject(loginWindow)
-                .preencherLogin(usuario)
-                .preencherSenha("Pass1234")
-                .clicarEntrarComSucesso(antesNovoMenu);
+        // Como o seu windowClosing abre o Menu Principal automaticamente, vamos capturá-lo:
+        LoginScreenObject wrapperHelper = new LoginScreenObject(loginWindow);
+        FrameFixture menuReaberto = wrapperHelper.aguardarNovaJanelaComTitulo("Menu Principal", framesAntesDeFechar, 8000);
+        MainMenuScreenObject novoMenu = new MainMenuScreenObject(menuReaberto);
 
         // 5. Clicar em "Continuar"
         novoMenu.clicarContinuar();
-        FrameFixture novoGameWindow = aguardarJanelaPorTitulo("Aventura Mágica", 4000);
+        FrameFixture novoGameWindow = wrapperHelper.aguardarNovaJanelaComTitulo("Aventura Mágica", framesAntesDeFechar, 4000);
         GameScreenObject jogoContinuado = new GameScreenObject(novoGameWindow);
 
         // 6. Assertiva de Sistema: Verifica se o estado se manteve
@@ -437,73 +456,15 @@ class GameSystemTest {
         assertThat(movimentosAoContinuar)
                 .as("A quantidade de movimentos ao continuar o jogo deve ser a mesma de quando o jogador saiu")
                 .isEqualTo(movimentosAposAndar);
-
-        // Limpeza final para não atrapalhar outros testes
-        novoGameWindow.cleanUp();
     }
+
     // ═══════════════════════════════════════════════════════════════════════
-    // J12. Atualização do Ranking pós-partida
+    // J12. Fim de Jogo (Derrota) → Retorna ao Menu
     // ═══════════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("J12: Partida finalizada deve salvar a pontuação e exibir o usuário no Ranking")
-    void j12_partidaFinalizadaAtualizaTabelaDeRanking() {
-        // 1. Setup: Criamos um usuário com prefixo "rk_" para facilitar a identificação
-        String usuarioRanking = "rk_" + UUID.randomUUID().toString().substring(0, 5);
-        cadastrarUsuarioAuxiliar(usuarioRanking, "Pass1234");
-        Set<Frame> antesMenu = new HashSet<>(Arrays.asList(Frame.getFrames()));
-
-        MainMenuScreenObject menu = new LoginScreenObject(loginWindow)
-                .preencherLogin(usuarioRanking)
-                .preencherSenha("Pass1234")
-                .clicarEntrarComSucesso(antesMenu);
-
-        // 2. Iniciar um Novo Jogo
-        menu.clicarNovoJogo();
-        gameWindow = aguardarJanelaPorTitulo("Aventura Mágica", 4000);
-        GameScreenObject game = new GameScreenObject(gameWindow);
-
-        // 3. Jogar até o fim para gerar uma pontuação
-        String textoMov = game.textoMovimentos();
-        int movimentosRestantes = Integer.parseInt(textoMov.replaceAll("\\D+", ""));
-
-        for (int i = 0; i < movimentosRestantes; i++) {
-            if (i % 2 == 0) {
-                game.moverLeste();
-            } else {
-                game.moverOeste();
-            }
-            Pause.pause(40, TimeUnit.MILLISECONDS);
-        }
-
-        // 4. Fechar o Pop-up de Fim de Jogo
-        JOptionPaneFixture popupFim = gameWindow.optionPane(timeout(3000));
-        popupFim.okButton().click();
-
-        // 5. De volta ao Menu, abrir o Ranking
-        FrameFixture menuReaberto = aguardarJanelaPorTitulo("Menu Principal", 4000);
-        MainMenuScreenObject mainMenuFinal = new MainMenuScreenObject(menuReaberto);
-
-        mainMenuFinal.clicarRanking();
-
-        // 6. Assertiva de Sistema: Validar presença na Tabela
-        // Capturamos o diálogo de ranking que acabou de abrir
-        DialogFixture rankingDialog = menuReaberto.dialog(timeout(3000));
-        RankingScreenObject ranking = new RankingScreenObject(menuReaberto, rankingDialog);
-
-        ranking.verificarRankingAberto()
-                .verificarUsuarioNaTabela(usuarioRanking) // A Mágica acontece aqui!
-                .fechar();
-    }
-
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // J13. Fim de Jogo (Derrota) → Retorna ao Menu
-    // ═══════════════════════════════════════════════════════════════════════
-
-    @Test
-    @DisplayName("J13: Condição de derrota fecha a partida e retorna ao Menu Principal")
-    void j13_fimDeJogoRetornaAoMenuPrincipal() {
+    @DisplayName("J12: Condição de derrota fecha a partida e retorna ao Menu Principal")
+    void j12_fimDeJogoRetornaAoMenuPrincipal() {
         // 1. Setup: Criamos o usuário e logamos
         String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
         cadastrarUsuarioAuxiliar(usuario, "Pass1234");
@@ -558,6 +519,62 @@ class GameSystemTest {
         mainMenuFinal.verificarMenuPrincipalAberto()
                 .verificarBotaoNovoJogoVisivel();
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // J13. Atualização do Ranking pós-partida
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("J13: Partida finalizada deve salvar a pontuação e exibir o usuário no Ranking")
+    void j13_partidaFinalizadaAtualizaTabelaDeRanking() {
+        // 1. Setup: Criamos um usuário com prefixo "rk_" para facilitar a identificação
+        String usuarioRanking = "rk_" + UUID.randomUUID().toString().substring(0, 5);
+        cadastrarUsuarioAuxiliar(usuarioRanking, "Pass1234");
+        Set<Frame> antesMenu = new HashSet<>(Arrays.asList(Frame.getFrames()));
+
+        MainMenuScreenObject menu = new LoginScreenObject(loginWindow)
+                .preencherLogin(usuarioRanking)
+                .preencherSenha("Pass1234")
+                .clicarEntrarComSucesso(antesMenu);
+
+        // 2. Iniciar um Novo Jogo
+        menu.clicarNovoJogo();
+        gameWindow = aguardarJanelaPorTitulo("Aventura Mágica", 4000);
+        GameScreenObject game = new GameScreenObject(gameWindow);
+
+        // 3. Jogar até o fim para gerar uma pontuação
+        String textoMov = game.textoMovimentos();
+        int movimentosRestantes = Integer.parseInt(textoMov.replaceAll("\\D+", ""));
+
+        for (int i = 0; i < movimentosRestantes; i++) {
+            if (i % 2 == 0) {
+                game.moverLeste();
+            } else {
+                game.moverOeste();
+            }
+            Pause.pause(40, TimeUnit.MILLISECONDS);
+        }
+
+        // 4. Fechar o Pop-up de Fim de Jogo
+        JOptionPaneFixture popupFim = gameWindow.optionPane(timeout(3000));
+        popupFim.okButton().click();
+
+        // 5. De volta ao Menu, abrir o Ranking
+        FrameFixture menuReaberto = aguardarJanelaPorTitulo("Menu Principal", 4000);
+        MainMenuScreenObject mainMenuFinal = new MainMenuScreenObject(menuReaberto);
+
+        mainMenuFinal.clicarRanking();
+
+        // 6. Assertiva de Sistema: Validar presença na Tabela
+        // Capturamos o diálogo de ranking que acabou de abrir
+        DialogFixture rankingDialog = menuReaberto.dialog(timeout(3000));
+        RankingScreenObject ranking = new RankingScreenObject(menuReaberto, rankingDialog);
+
+        ranking.verificarRankingAberto()
+                .verificarUsuarioNaTabela(usuarioRanking) // A Mágica acontece aqui!
+                .fechar();
+    }
+
 
     // ═══════════════════════════════════════════════════════════════════════
     // Utilitários privados do teste

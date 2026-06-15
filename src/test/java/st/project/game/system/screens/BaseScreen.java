@@ -1,8 +1,10 @@
 package st.project.game.system.screens;
 
+import org.assertj.swing.core.GenericTypeMatcher;
 import org.assertj.swing.core.Robot;
 import org.assertj.swing.edt.GuiActionRunner;
 import org.assertj.swing.fixture.FrameFixture;
+import org.assertj.swing.fixture.JButtonFixture;
 import org.assertj.swing.timing.Pause;
 
 import javax.swing.*;
@@ -12,11 +14,11 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * BaseScreen — raiz da hierarquia de Screen Objects.
- * <p>
+ *
  * Mantém a referência ao FrameFixture ativo para que todos os
  * Screen Objects filhos possam interagir com a janela sem precisar
  * receber o fixture repetidamente em cada método.
- * <p>
+ *
  * Padrão aplicado: Screen Object (adaptação de Page Object para Swing).
  * Cada subclasse representa uma tela do jogo e expõe apenas as ações
  * e verificações visíveis ao usuário — nenhuma lógica de negócio é
@@ -36,6 +38,15 @@ public abstract class BaseScreen {
         return window.robot();
     }
 
+    @Deprecated
+    protected JButtonFixture botaoPorTexto(String texto) {
+        return window.button(new GenericTypeMatcher<JButton>(JButton.class) {
+            @Override protected boolean isMatching(JButton b) {
+                return texto.equals(b.getText()) && b.isShowing();
+            }
+        });
+    }
+
     /**
      * Aguarda e captura uma NOVA janela que apareceu no sistema operacional,
      * ignorando um conjunto de frames antigos informados.
@@ -51,9 +62,11 @@ public abstract class BaseScreen {
             for (Frame f : Frame.getFrames()) {
                 if (!framesAntigos.contains(f)
                         && f.isVisible()
-                        && f instanceof JFrame frame
+                        && f instanceof JFrame
                         && f.getTitle() != null
                         && f.getTitle().toLowerCase().contains(fragmento.toLowerCase())) {
+
+                    JFrame frame = (JFrame) f;
 
                     GuiActionRunner.execute((java.util.concurrent.Callable<Void>) () -> {
                         frame.toFront();
