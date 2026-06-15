@@ -575,7 +575,127 @@ class GameSystemTest {
                 .fechar();
     }
 
+    @Test
+    @DisplayName("J14: passear pelo mapa percorrendo os 4 andares via escadas")
+    void j14_passearPeloMapaNosQuatroAndares() {
+        // ── Cadastro — mesmo padrão do J3 ────────────────────────────────
+        String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
+        String senha   = "Pass1234";
 
+        new LoginScreenObject(loginWindow).clicarCadastrar();
+        JOptionPaneFixture opcao = loginWindow.optionPane(timeout(3000));
+        textBoxNoOptPane(opcao, 0).enterText(usuario);
+        textBoxNoOptPane(opcao, 1).enterText(senha);
+        opcao.okButton().click();
+        loginWindow.optionPane(timeout(3000)).okButton().click();
+
+        // ── Login — mesmo padrão do J5 ────────────────────────────────────
+        // framesAntesLogin capturado antes do clique para que
+        // aguardarNovaJanelaComTitulo ignore janelas já existentes
+        new LoginScreenObject(loginWindow)
+                .preencherLogin(usuario)
+                .preencherSenha(senha);
+
+        Set<Frame> framesAntesLogin = new HashSet<>(Arrays.asList(Frame.getFrames()));
+        MainMenuScreenObject menu = new LoginScreenObject(loginWindow)
+                .clicarEntrarComSucesso(framesAntesLogin);
+
+
+
+        // ── Novo jogo  ───────────────────────────────
+        menu.clicarNovoJogo();
+        gameWindow = aguardarJanelaPorTitulo("Aventura Mágica", 4000);
+        GameScreenObject game = new GameScreenObject(gameWindow);
+
+        // ── Estado inicial ────────────────────────────────────────────────
+        assertThat(game.textoAndar())
+                .as("Deve iniciar no andar 1")
+                .isEqualTo("Andar: 1/4");
+
+        String movInicio = game.textoMovimentos();
+
+        // ── Andar 1 → 2: 4× leste ────────────────────────────────────────
+        for (int i = 0; i < 4; i++) {
+            game.moverLeste();
+            Pause.pause(150, TimeUnit.MILLISECONDS);
+        }
+
+        assertThat(game.textoAndar())
+                .as("Após 4× leste deve estar no andar 2")
+                .isEqualTo("Andar: 2/4");
+
+        assertThat(game.textoLog())
+                .as("Log deve registrar entrada no andar 2")
+                .containsIgnoringCase("Andar 2");
+
+        assertThat(game.textoMovimentos())
+                .as("Movimentos devem ter diminuído ao cruzar o andar 1")
+                .isNotEqualTo(movInicio);
+
+        // ── Andar 2 → 3: 4× leste + 4× norte ────────────────────────────
+        // Teleporte cai em escada_baixo=(0,4); escada_cima está em (4,0)
+        for (int i = 0; i < 4; i++) {
+            game.moverLeste();
+            Pause.pause(150, TimeUnit.MILLISECONDS);
+        }
+        for (int i = 0; i < 4; i++) {
+            game.moverNorte();
+            Pause.pause(150, TimeUnit.MILLISECONDS);
+        }
+
+        assertThat(game.textoAndar())
+                .as("Após leste×4 + norte×4 deve estar no andar 3")
+                .isEqualTo("Andar: 3/4");
+
+        assertThat(game.textoLog())
+                .as("Log deve registrar entrada no andar 3")
+                .containsIgnoringCase("Andar 3");
+
+        // ── Andar 3 → 4: 4× leste + 4× norte ────────────────────────────
+        for (int i = 0; i < 4; i++) {
+            game.moverLeste();
+            Pause.pause(150, TimeUnit.MILLISECONDS);
+        }
+        for (int i = 0; i < 4; i++) {
+            game.moverNorte();
+            Pause.pause(150, TimeUnit.MILLISECONDS);
+        }
+
+        assertThat(game.textoAndar())
+                .as("Após percorrer andar 3 deve estar no andar 4")
+                .isEqualTo("Andar: 4/4");
+
+        assertThat(game.textoLog())
+                .as("Log deve registrar entrada no andar 4")
+                .containsIgnoringCase("Andar 4");
+
+        // ── Passeio no andar 4: 3× leste ─────────────────────────────────
+        // De (0,4) em direção a (4,4). As salas (1,4)(2,4)(3,4) são livres.
+        for (int i = 0; i < 3; i++) {
+            game.moverLeste();
+            Pause.pause(150, TimeUnit.MILLISECONDS);
+        }
+
+        assertThat(game.textoAndar())
+                .as("Deve permanecer no andar 4 após passeio")
+                .isEqualTo("Andar: 4/4");
+
+        assertThat(game.textoMovimentos())
+                .as("Devem restar movimentos após o passeio completo")
+                .doesNotContain("Mov: 0");
+
+
+        game.moverLeste();
+        Pause.pause(300, TimeUnit.MILLISECONDS);
+
+        assertThat(game.textoAndar())
+                .as("Ao tentar entrar em 'sagrado' sem a CHAVE deve ser teleportado de volta ao andar 1")
+                .isEqualTo("Andar: 1/4");
+
+        assertThat(game.textoLog())
+                .as("Log deve registrar o retorno forçado à entrada pelo alçapão")
+                .contains("-> entrada");
+    }
     // ═══════════════════════════════════════════════════════════════════════
     // Utilitários privados do teste
     // ═══════════════════════════════════════════════════════════════════════
