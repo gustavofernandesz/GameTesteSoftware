@@ -249,6 +249,10 @@ class GameSystemTest {
     // J7. Movimento válido → movimentos diminuem e log muda
     // ═══════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════
+    // J7. Movimento válido → movimentos diminuem e log muda
+    // ═══════════════════════════════════════════════════════════════════════
+
     @Test
     @DisplayName("J7: pressionar D (leste) diminui movimentos restantes e popula log")
     void j7_movimentoValidoAlteraMovimentosELog() {
@@ -269,7 +273,12 @@ class GameSystemTest {
         String logAntes = game.textoLog();
 
         game.moverLeste();
-        Pause.pause(500, TimeUnit.MILLISECONDS);
+
+        // Espera condicional inteligente (timeout de 2 segundos)
+        long start = System.currentTimeMillis();
+        while (game.textoMovimentos().equals(movAntes) && (System.currentTimeMillis() - start) < 2000) {
+            Pause.pause(50, TimeUnit.MILLISECONDS);
+        }
 
         assertThat(game.textoMovimentos()).isNotEqualTo(movAntes);
         assertThat(game.textoLog()).isNotEqualTo(logAntes);
@@ -297,14 +306,25 @@ class GameSystemTest {
         GameScreenObject game = new GameScreenObject(gameWindow);
         String movAntes = game.textoMovimentos();
 
-        game.moverNorte();
-        Pause.pause(500, TimeUnit.MILLISECONDS);
+        game.moverNorte(); // Movimento contra a parede (bloqueado)
+
+        // Espera condicional inteligente esperando a mensagem aparecer no LOG
+        long startNorte = System.currentTimeMillis();
+        while (!game.textoLog().toLowerCase().contains("bloqueado") && (System.currentTimeMillis() - startNorte) < 2000) {
+            Pause.pause(50, TimeUnit.MILLISECONDS);
+        }
 
         assertThat(game.textoLog()).containsIgnoringCase("Bloqueado");
         assertThat(game.textoMovimentos()).isEqualTo(movAntes);
 
-        game.moverLeste();
-        Pause.pause(400, TimeUnit.MILLISECONDS);
+        game.moverLeste(); // Movimento válido
+
+        // Espera condicional inteligente esperando o movimento ser descontado
+        long startLeste = System.currentTimeMillis();
+        while (game.textoMovimentos().equals(movAntes) && (System.currentTimeMillis() - startLeste) < 2000) {
+            Pause.pause(50, TimeUnit.MILLISECONDS);
+        }
+
         assertThat(game.textoMovimentos()).isNotEqualTo(movAntes);
     }
 
