@@ -115,6 +115,7 @@ public class MainMenu extends JFrame {
         JList<String> userList = new JList<>(listModel);
         userManager.getAllUsers().forEach(u -> listModel.addElement(u.getLogin() + " (score: " + u.getBestScore() + ")"));
         JButton deleteBtn = getJButton(userList, dialog, listModel);
+        deleteBtn.setName("deleteUserButton");
         dialog.add(new JScrollPane(userList), BorderLayout.CENTER);
         dialog.add(deleteBtn, BorderLayout.SOUTH);
         dialog.setSize(300, 250);
@@ -141,12 +142,12 @@ public class MainMenu extends JFrame {
         return deleteBtn;
     }
 
-    private JButton createButton(String text, String id) {
-        JButton btn = new JButton(text);
+    private JButton createButton(String label, String name) {
+        JButton btn = new JButton(label);
         btn.setBackground(new Color(0x1C1C38));
         btn.setForeground(Color.WHITE);
         btn.setFocusPainted(false);
-        btn.setName(id);
+        btn.setName(name);
         return btn;
     }
 }

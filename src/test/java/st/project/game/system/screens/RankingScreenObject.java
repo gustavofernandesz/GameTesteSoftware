@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * RankingScreenObject — Screen Object do diálogo de Ranking (RankingDialog).
- *
+ * <p>
  * RankingDialog é um JDialog MODAL: setVisible(true) é chamado dentro do
  * próprio construtor (ver RankingDialog.java) e bloqueia a EDT até dispose().
  * Por isso este Screen Object recebe:
@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   - o DialogFixture já localizado pelo chamador através de
  *     window.dialog(timeout(...)), pois é o diálogo, e não a janela pai,
  *     que contém a tabela de ranking e o botão "Fechar".
- *
+ * <p>
  * Componentes reais (RankingDialog.java):
  *   JTable      → tabela única, sem name, colunas
  *                 ["Login", "Melhor Pontuação", "Sessões"]
@@ -67,4 +67,16 @@ public class RankingScreenObject extends BaseScreen {
         fecharBtn.requireVisible().requireEnabled().click();
         return this;
     }
+
+    /**
+     * Busca na tabela de ranking por uma célula que contenha exatamente
+     * o nome do usuário. Se não encontrar, o AssertJ Swing falhará o teste,
+     * o que é o comportamento esperado.
+     */
+    public RankingScreenObject verificarUsuarioNaTabela(String nomeUsuario) {
+        // dialog é a referência do DialogFixture que você já recebe no construtor
+        dialog.table().cell(nomeUsuario).requireValue(nomeUsuario);
+        return this;
+    }
+
 }

@@ -2,29 +2,11 @@ package st.project.game.system.screens;
 
 import org.assertj.swing.core.GenericTypeMatcher;
 import org.assertj.swing.fixture.FrameFixture;
-
 import javax.swing.*;
-import java.awt.event.KeyEvent;
 
 /**
  * GameScreenObject — Screen Object da tela de jogo (GameGUI).
- *
- * Labels reais (campos privados em GameGUI, sem setName()):
- *   scoreLabel  → texto inicial "Score: 0"
- *   timeLabel   → texto inicial "Tempo: 120s"
- *   movesLabel  → texto inicial "Mov: 20"
- *   levelLabel  → texto inicial "Nível: 1"
- *   andarLabel  → texto inicial "Andar: 1/4"
- *   logArea     → JTextArea (único editável=false na janela)
- *
- * Como os labels NÃO têm setName(), são localizados pelo texto que contêm.
- * O logArea é o único JTextArea na janela.
- *
- * Mapeamento de teclas real (GameGUI.buildKeyBindings()):
- *   VK_W / VK_UP    → norte
- *   VK_S / VK_DOWN  → sul
- *   VK_A / VK_LEFT  → oeste
- *   VK_D / VK_RIGHT → leste
+ * Agora os componentes possuem names definidos para alta testabilidade.
  */
 public class GameScreenObject extends BaseScreen {
 
@@ -35,76 +17,55 @@ public class GameScreenObject extends BaseScreen {
     // ── Movimentos ────────────────────────────────────────────────────────
 
     public GameScreenObject moverNorte() {
-        window.pressAndReleaseKeys(KeyEvent.VK_W);
+        window.button("norte").click();
         return this;
     }
 
     public GameScreenObject moverSul() {
-        window.pressAndReleaseKeys(KeyEvent.VK_S);
+        window.button("sul").click();
         return this;
     }
 
     public GameScreenObject moverLeste() {
-        window.pressAndReleaseKeys(KeyEvent.VK_D);
+        window.button("leste").click();
         return this;
     }
 
     public GameScreenObject moverOeste() {
-        window.pressAndReleaseKeys(KeyEvent.VK_A);
+        window.button("oeste").click();
         return this;
     }
 
-    // ── Leitura de labels por texto ───────────────────────────────────────
+    // ── Leitura de labels por nome ───────────────────────────────────────
 
-    /** Retorna o texto atual do label de score ("Score: N"). */
     public String textoScore() {
-        return window.label(new GenericTypeMatcher<JLabel>(JLabel.class) {
-            @Override protected boolean isMatching(JLabel l) {
-                return l.getText() != null && l.getText().startsWith("Score:");
-            }
-        }).text();
+        return window.label("scoreLabel").text();
     }
 
-    /** Retorna o texto atual do label de tempo ("Tempo: Ns"). */
     public String textoTempo() {
-        return window.label(new GenericTypeMatcher<JLabel>(JLabel.class) {
-            @Override protected boolean isMatching(JLabel l) {
-                return l.getText() != null && l.getText().startsWith("Tempo:");
-            }
-        }).text();
+        return window.label("timeLabel").text();
     }
 
-    /** Retorna o texto atual do label de movimentos ("Mov: N"). */
     public String textoMovimentos() {
-        return window.label(new GenericTypeMatcher<JLabel>(JLabel.class) {
-            @Override protected boolean isMatching(JLabel l) {
-                return l.getText() != null && l.getText().startsWith("Mov:");
-            }
-        }).text();
+        return window.label("movesLabel").text();
     }
 
-    /** Retorna o texto atual do label de nível ("Nível: N"). */
     public String textoNivel() {
-        return window.label(new GenericTypeMatcher<JLabel>(JLabel.class) {
-            @Override protected boolean isMatching(JLabel l) {
-                return l.getText() != null && l.getText().startsWith("Nível:");
-            }
-        }).text();
+        return window.label("levelLabel").text();
     }
 
-    /** Retorna o texto atual do label de andar ("Andar: N/4"). */
     public String textoAndar() {
-        return window.label(new GenericTypeMatcher<JLabel>(JLabel.class) {
-            @Override protected boolean isMatching(JLabel l) {
-                return l.getText() != null && l.getText().startsWith("Andar:");
-            }
-        }).text();
+        return window.label("andarLabel").text();
     }
 
-    /** Retorna o conteúdo do log de ações (único JTextArea da janela). */
     public String textoLog() {
-        return window.textBox(new GenericTypeMatcher<JTextArea>(JTextArea.class) {
-            @Override protected boolean isMatching(JTextArea t) { return true; }
+        // Mantido com GenericTypeMatcher pois é o único JTextArea da tela
+        // (mas você pode dar setName("logArea") nele no código real depois!)
+        return window.textBox(new GenericTypeMatcher<>(JTextArea.class) {
+            @Override
+            protected boolean isMatching(JTextArea t) {
+                return true;
+            }
         }).text();
     }
 
@@ -116,18 +77,20 @@ public class GameScreenObject extends BaseScreen {
     }
 
     public GameScreenObject verificarLabelsVisiveis() {
-        // Verifica que todos os labels existem e estão visíveis
-        textoScore();
-        textoTempo();
-        textoMovimentos();
-        textoNivel();
-        textoAndar();
+        window.label("scoreLabel").requireVisible();
+        window.label("timeLabel").requireVisible();
+        window.label("movesLabel").requireVisible();
+        window.label("levelLabel").requireVisible();
+        window.label("andarLabel").requireVisible();
         return this;
     }
 
     public GameScreenObject verificarLogVisivel() {
-        window.textBox(new GenericTypeMatcher<JTextArea>(JTextArea.class) {
-            @Override protected boolean isMatching(JTextArea t) { return true; }
+        window.textBox(new GenericTypeMatcher<>(JTextArea.class) {
+            @Override
+            protected boolean isMatching(JTextArea t) {
+                return true;
+            }
         }).requireVisible();
         return this;
     }

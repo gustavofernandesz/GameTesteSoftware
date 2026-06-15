@@ -148,13 +148,18 @@ public class GameGUI extends JFrame implements PropertyChangeListener {
 
         // Exibe estado inicial
         timeLabel.setText("Tempo: " + model.getTempoRestante() + "s");
+        timeLabel.setName("timeLabel");
         movesLabel.setText("Mov: " + model.getMovimentosRestantes());
+        movesLabel.setName("movesLabel");
         levelLabel.setText("Nível: " + model.getNivel());
+        levelLabel.setName("levelLabel");
         scoreLabel.setText("Score: " + model.getScore());
+        scoreLabel.setName("scoreLabel");
 
         //Adição de inicialização do andarLabel no construtor
 
         andarLabel.setText("Andar: " + model.getAndarAtual() + "/4");
+        andarLabel.setName("andarLabel");
         log("Bem-vindo, aventureiro!");
         log("  Encontre o Cálice Mágico.");
         log("  Você precisa da Chave Encantada");

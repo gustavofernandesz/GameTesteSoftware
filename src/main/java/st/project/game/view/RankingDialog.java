@@ -48,9 +48,9 @@ public class RankingDialog extends JDialog {
         setVisible(true);
     }
 
-    private JButton createButton(String text, String id) {
-        JButton btn = new JButton(text);
-        btn.setName(id);
+    private JButton createButton(String label, String name) {
+        JButton btn = new JButton(label);
+        btn.setName(name);
         return btn;
     }
 }

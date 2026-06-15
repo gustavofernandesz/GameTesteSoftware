@@ -50,13 +50,16 @@ class GameSystemTest {
     }
 
     @AfterEach
-    void fecharTodasAsJanelas() {
-        if (robot != null) {
-            try {
-                robot.cleanUp();
-            } catch (Exception ignored) {}
-            robot = null;
+    void limparArquivosE_AbrirLoginScreen() {
+        try {
+            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get("usuarios.txt"));
+            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get("ranking.txt"));
+            // Limpa a pasta de saves, etc...
+        } catch (java.io.IOException e) {
+            // ignora
         }
+
+        robot = org.assertj.swing.core.BasicRobot.robotWithNewAwtHierarchy();
 
         for (Frame f : Frame.getFrames()) {
             if (f.isDisplayable()) {
@@ -351,6 +354,189 @@ class GameSystemTest {
         } finally {
             novoLogin.cleanUp();
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // J11. Continuar Jogo → Restaura o estado salvo
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("J11: Continuar jogo deve restaurar a exata quantidade de movimentos e estado anterior")
+    void j11_continuarJogoRestauraEstadoAnterior() {
+        // 1. Setup: Criamos o usuário e logamos
+        String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
+        cadastrarUsuarioAuxiliar(usuario, "Pass1234");
+        Set<Frame> antesMenu = new HashSet<>(Arrays.asList(Frame.getFrames()));
+
+        MainMenuScreenObject menu = new LoginScreenObject(loginWindow)
+                .preencherLogin(usuario)
+                .preencherSenha("Pass1234")
+                .clicarEntrarComSucesso(antesMenu);
+
+        // 2. Iniciar um Novo Jogo
+        menu.clicarNovoJogo();
+        gameWindow = aguardarJanelaPorTitulo("Aventura Mágica", 4000);
+        GameScreenObject game = new GameScreenObject(gameWindow);
+
+        // 3. Modificar o estado do jogo (fazer um movimento válido)
+        String movAntes = game.textoMovimentos();
+        game.moverLeste();
+
+        // Espera condicional melhorada para evitar flakiness (espera o label atualizar)
+        long startTime = System.currentTimeMillis();
+        while (game.textoMovimentos().equals(movAntes) && (System.currentTimeMillis() - startTime) < 2000) {
+            Pause.pause(100, TimeUnit.MILLISECONDS);
+        }
+
+        String movimentosAposAndar = game.textoMovimentos();
+        assertThat(movimentosAposAndar)
+                .as("O movimento deveria ter alterado o texto de movimentos")
+                .isNotEqualTo(movAntes);
+
+        // 4. Fechar o jogo / Voltar ao menu principal
+        // ATENÇÃO: Dependendo de como seu jogo funciona, você pode ter um botão 'Voltar' ou precisar fechar o frame.
+        // Aqui simulo fechando a janela do jogo e voltando para a tela de login para relogar e Continuar.
+        gameWindow.cleanUp(); // Fecha a janela do jogo
+
+        // Vamos relogar para simular um novo acesso (ou você pode clicar em um botão Voltar se houver)
+        abrirLoginScreen(); // Reabre a tela de login
+        Set<Frame> antesNovoMenu = new HashSet<>(Arrays.asList(Frame.getFrames()));
+
+        MainMenuScreenObject novoMenu = new LoginScreenObject(loginWindow)
+                .preencherLogin(usuario)
+                .preencherSenha("Pass1234")
+                .clicarEntrarComSucesso(antesNovoMenu);
+
+        // 5. Clicar em "Continuar"
+        novoMenu.clicarContinuar();
+        FrameFixture novoGameWindow = aguardarJanelaPorTitulo("Aventura Mágica", 4000);
+        GameScreenObject jogoContinuado = new GameScreenObject(novoGameWindow);
+
+        // 6. Assertiva de Sistema: Verifica se o estado se manteve
+        String movimentosAoContinuar = jogoContinuado.textoMovimentos();
+        assertThat(movimentosAoContinuar)
+                .as("A quantidade de movimentos ao continuar o jogo deve ser a mesma de quando o jogador saiu")
+                .isEqualTo(movimentosAposAndar);
+
+        // Limpeza final para não atrapalhar outros testes
+        novoGameWindow.cleanUp();
+    }
+    // ═══════════════════════════════════════════════════════════════════════
+    // J12. Atualização do Ranking pós-partida
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("J12: Partida finalizada deve salvar a pontuação e exibir o usuário no Ranking")
+    void j12_partidaFinalizadaAtualizaTabelaDeRanking() {
+        // 1. Setup: Criamos um usuário com prefixo "rk_" para facilitar a identificação
+        String usuarioRanking = "rk_" + UUID.randomUUID().toString().substring(0, 5);
+        cadastrarUsuarioAuxiliar(usuarioRanking, "Pass1234");
+        Set<Frame> antesMenu = new HashSet<>(Arrays.asList(Frame.getFrames()));
+
+        MainMenuScreenObject menu = new LoginScreenObject(loginWindow)
+                .preencherLogin(usuarioRanking)
+                .preencherSenha("Pass1234")
+                .clicarEntrarComSucesso(antesMenu);
+
+        // 2. Iniciar um Novo Jogo
+        menu.clicarNovoJogo();
+        gameWindow = aguardarJanelaPorTitulo("Aventura Mágica", 4000);
+        GameScreenObject game = new GameScreenObject(gameWindow);
+
+        // 3. Jogar até o fim para gerar uma pontuação
+        String textoMov = game.textoMovimentos();
+        int movimentosRestantes = Integer.parseInt(textoMov.replaceAll("\\D+", ""));
+
+        for (int i = 0; i < movimentosRestantes; i++) {
+            if (i % 2 == 0) {
+                game.moverLeste();
+            } else {
+                game.moverOeste();
+            }
+            Pause.pause(40, TimeUnit.MILLISECONDS);
+        }
+
+        // 4. Fechar o Pop-up de Fim de Jogo
+        JOptionPaneFixture popupFim = gameWindow.optionPane(timeout(3000));
+        popupFim.okButton().click();
+
+        // 5. De volta ao Menu, abrir o Ranking
+        FrameFixture menuReaberto = aguardarJanelaPorTitulo("Menu Principal", 4000);
+        MainMenuScreenObject mainMenuFinal = new MainMenuScreenObject(menuReaberto);
+
+        mainMenuFinal.clicarRanking();
+
+        // 6. Assertiva de Sistema: Validar presença na Tabela
+        // Capturamos o diálogo de ranking que acabou de abrir
+        DialogFixture rankingDialog = menuReaberto.dialog(timeout(3000));
+        RankingScreenObject ranking = new RankingScreenObject(menuReaberto, rankingDialog);
+
+        ranking.verificarRankingAberto()
+                .verificarUsuarioNaTabela(usuarioRanking) // A Mágica acontece aqui!
+                .fechar();
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // J13. Fim de Jogo (Derrota) → Retorna ao Menu
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("J13: Condição de derrota fecha a partida e retorna ao Menu Principal")
+    void j13_fimDeJogoRetornaAoMenuPrincipal() {
+        // 1. Setup: Criamos o usuário e logamos
+        String usuario = "sys_" + UUID.randomUUID().toString().substring(0, 8);
+        cadastrarUsuarioAuxiliar(usuario, "Pass1234");
+        Set<Frame> antesMenu = new HashSet<>(Arrays.asList(Frame.getFrames()));
+
+        MainMenuScreenObject menu = new LoginScreenObject(loginWindow)
+                .preencherLogin(usuario)
+                .preencherSenha("Pass1234")
+                .clicarEntrarComSucesso(antesMenu);
+
+        // 2. Iniciar um Novo Jogo
+        menu.clicarNovoJogo();
+        gameWindow = aguardarJanelaPorTitulo("Aventura Mágica", 4000);
+        GameScreenObject game = new GameScreenObject(gameWindow);
+
+        // 3. Obter a quantidade total de movimentos (ex: "Mov: 20" -> extrai o 20)
+        String textoMov = game.textoMovimentos();
+        int movimentosRestantes = Integer.parseInt(textoMov.replaceAll("\\D+", ""));
+
+        // 4. Ação: Gastar todos os movimentos simulando a derrota (anda Leste e Oeste repetidamente)
+        for (int i = 0; i < movimentosRestantes; i++) {
+            if (i % 2 == 0) {
+                game.moverLeste();
+            } else {
+                game.moverOeste();
+            }
+            // Pausa minúscula para não atropelar a Event Dispatch Thread (EDT) do Swing
+            Pause.pause(40, TimeUnit.MILLISECONDS);
+        }
+
+        // 5. Capturar o Pop-up de Fim de Jogo
+        // Usamos timeout(3000) para aguardar o pop-up aparecer assim que o último movimento for feito
+        JOptionPaneFixture popupFim = gameWindow.optionPane(timeout(3000));
+
+        // Verifica o título que você me confirmou
+        popupFim.requireTitle("FIM DE JOGO");
+
+        // DICA: Se a mensagem de erro por falta de movimentos for diferente de "Tempo esgotado...",
+        // descomente e altere a linha abaixo para validar a mensagem exata:
+        // popupFim.requireMessage("Sua mensagem de fim de jogo por falta de movimentos aqui");
+
+        // 6. Ação: Jogador clica no botão OK do pop-up
+        popupFim.okButton().click();
+
+        // 7. Assertiva de Sistema: O jogo deve fechar e o Menu Principal reaparecer
+        // Como o frame de Jogo deve ter sofrido "dispose()", procuramos pela janela do Menu novamente
+        FrameFixture menuReaberto = aguardarJanelaPorTitulo("Menu Principal", 4000);
+
+        MainMenuScreenObject mainMenuFinal = new MainMenuScreenObject(menuReaberto);
+
+        // Verifica se a tela do menu está totalmente interativa novamente
+        mainMenuFinal.verificarMenuPrincipalAberto()
+                .verificarBotaoNovoJogoVisivel();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
