@@ -9,6 +9,9 @@ public class UserManager {
     private static final String USERS_FILE = "users.dat";
     private List<User> users;
 
+    public static final int MAX_LOGIN = 40;
+    public static final int MAX_PASSWORD = 40;
+
     public UserManager() {
         loadUsers();
     }
@@ -40,6 +43,10 @@ public class UserManager {
     }
 
     public boolean registerUser(String login, String password, String avatar) {
+
+        if (login.length() > MAX_LOGIN || password.length() > MAX_PASSWORD) {
+            return false; // Limite de caracteres
+        }
         if (getUser(login) != null) return false;
         users.add(new User(login, password, avatar));
         saveUsers();
@@ -47,6 +54,7 @@ public class UserManager {
     }
 
     public User authenticate(String login, String password) {
+        if (login.length() > MAX_LOGIN || password.length() > MAX_PASSWORD) return null;
         User u = getUser(login);
         return (u != null && u.checkPassword(password)) ? u : null;
     }

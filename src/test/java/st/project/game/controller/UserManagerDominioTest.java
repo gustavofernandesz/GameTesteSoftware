@@ -32,7 +32,25 @@ class UserManagerDominioTest {
 
     @AfterEach
     void tearDown() {
-        apagarArquivoUsuarios();
+        try {
+            // 1. Limpa os arquivos de texto
+            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get("usuarios.txt"));
+            java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get("ranking.txt"));
+
+            // 2. Limpa a PASTA de saves corretamente
+            java.io.File pastaSaves = new java.io.File("saves");
+            if (pastaSaves.exists() && pastaSaves.isDirectory()) {
+                java.io.File[] arquivos = pastaSaves.listFiles();
+                if (arquivos != null) {
+                    for (java.io.File f : arquivos) {
+                        if (!f.isDirectory()) {
+                            f.delete();
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     private void apagarArquivoUsuarios() {

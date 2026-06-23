@@ -4,6 +4,11 @@ import st.project.game.controller.UserManager;
 import st.project.game.model.User;
 
 import javax.swing.*;
+import javax.swing.text.AbstractDocument;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.JTextComponent;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.DocumentFilter;
 import java.awt.*;
 import java.util.List;
 
@@ -65,6 +70,8 @@ public class LoginScreen extends JFrame {
         loginField = new JTextField(15);
         loginField.setName("loginField");
 
+        limitarCaracteres(loginField, UserManager.MAX_LOGIN);
+
         gbc.gridx = 1;
 
         add(loginField, gbc);
@@ -78,6 +85,8 @@ public class LoginScreen extends JFrame {
 
         passwordField = new JPasswordField(15);
         passwordField.setName("passwordField");
+
+        limitarCaracteres(passwordField, UserManager.MAX_PASSWORD);
 
         gbc.gridx = 1;
 
@@ -162,8 +171,12 @@ public class LoginScreen extends JFrame {
         JTextField loginF = new JTextField();
         loginF.setName("createAccountLoginField");
 
+        limitarCaracteres(loginF, UserManager.MAX_LOGIN);
+
         JPasswordField passF = new JPasswordField();
         passF.setName("createAccountPasswordField");
+
+        limitarCaracteres(passF, UserManager.MAX_PASSWORD);
 
         JTextField avatarF = new JTextField("avatar1.png");
         avatarF.setName("createAccountAvatarField");
@@ -302,5 +315,28 @@ public class LoginScreen extends JFrame {
         } catch (Exception ignored) {}
 
         SwingUtilities.invokeLater(LoginScreen::new);
+    }
+
+    private void limitarCaracteres(JTextComponent campo, int max) {
+        ((AbstractDocument) campo.getDocument()).setDocumentFilter(new DocumentFilter() {
+            @Override
+            public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr)
+                    throws BadLocationException {
+                if (string == null) return;
+                if (fb.getDocument().getLength() + string.length() <= max) {
+                    super.insertString(fb, offset, string, attr);
+                }
+            }
+
+            @Override
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
+                    throws BadLocationException {
+                if (text == null) return;
+                int novoTamanho = fb.getDocument().getLength() - length + text.length();
+                if (novoTamanho <= max) {
+                    super.replace(fb, offset, length, text, attrs);
+                }
+            }
+        });
     }
 }
